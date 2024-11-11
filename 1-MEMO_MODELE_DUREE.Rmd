@@ -138,7 +138,7 @@ legend(
 Interprétation Intuitive:
 
 Taux Instantané: La fonction de hasard représente le taux instantané de survenue de l'événement à un moment donné.   
-Par exemple, si h(t)=0.05h(t)=0.05 à t=10t=10 semaines, cela signifie que le taux de survenue de l'événement à 10 semaines est de 5% par unité de temps.  
+Par exemple, si h(t)=0.05 à t=10 semaines, cela signifie que le taux de survenance de évènement à 10 semaines est de 5% par unité de temps.  
 Conditionnelle à la Survie: La fonction de hasard est conditionnelle à la survie jusqu'à ce moment. Elle ne prend en compte que les individus qui n'ont pas encore subi l'événement.
 
 ```{r}

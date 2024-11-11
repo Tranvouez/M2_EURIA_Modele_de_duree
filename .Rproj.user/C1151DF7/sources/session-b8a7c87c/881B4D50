@@ -3,9 +3,9 @@
     "path": "~/1-Etude/-EURIA/M2 - EURIA/M2-S1/M2-S1-MODELES DE DUREES/MD - F.VERMET/1-MEMO_MODELE_DUREE/1-MEMO_MODELE_DUREE.Rmd",
     "project_path": "1-MEMO_MODELE_DUREE.Rmd",
     "type": "r_markdown",
-    "hash": "0",
+    "hash": "4016728796",
     "contents": "",
-    "dirty": true,
+    "dirty": false,
     "created": 1731000338701.0,
     "source_on_save": false,
     "relative_order": 1,
@@ -19,11 +19,11 @@
         "docOutlineSize": "238"
     },
     "folds": "",
-    "lastKnownWriteTime": 1731344964,
+    "lastKnownWriteTime": 1731345429,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1731345071100,
+    "last_content_update": 1731345429109,
     "read_only": false,
     "read_only_alternatives": []
 }
