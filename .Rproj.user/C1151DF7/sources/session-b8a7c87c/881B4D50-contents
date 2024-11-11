@@ -38,7 +38,7 @@ palette_couleur = c("#36648B", "#F4A460", "#9AFF9A", "#FFD700", "#838B8B","#EED5
 
 ```{r results='hide'}
 library(tidyverse)
-Re = read.table("rossi.txt", header = TRUE)
+Re = read.table("DATA/rossi.txt", header = TRUE)
 glimpse(Re)
 
 # Suppression de la variable race : 
@@ -138,7 +138,7 @@ legend(
 Interprétation Intuitive:
 
 Taux Instantané: La fonction de hasard représente le taux instantané de survenue de l'événement à un moment donné.   
-Par exemple, si h(t)=0.05h(t)=0.05 à t=10t=10 semaines, cela signifie que le taux de survenue de l'événement à 10 semaines est de 5% par unité de temps.  
+Par exemple, si h(t)=0.05 à t=10 semaines, cela signifie que le taux de survenance de évènement à 10 semaines est de 5% par unité de temps.  
 Conditionnelle à la Survie: La fonction de hasard est conditionnelle à la survie jusqu'à ce moment. Elle ne prend en compte que les individus qui n'ont pas encore subi l'événement.
 
 ```{r}
@@ -550,7 +550,7 @@ Avec : \alpha_x = la valeur moyenne
 \begin{array}{l}
 \alpha_x : \text{la valeur moyenne} \\
 k_t : \text{correspond à une évolution générale dans le temps}
-\beta_x : \text{la sensibilité du taux instantané par rapport à une variation de k_t} \\
+\beta_x : \text{la sensibilité du taux instantané par rapport à une variation de $k_t$} \\
 \end{array}
 \right.
 \]
