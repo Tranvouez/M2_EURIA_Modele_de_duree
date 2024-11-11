@@ -1,0 +1,777 @@
+---
+title: "Modèles de durée : TD et Examens "
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    toc: true
+    number_sections: true
+    toc_depth: 3
+    latex_engine: xelatex
+  header-includes:
+  - \usepackage{fontspec}
+  - \usepackage{unicode-math}
+---
+
+```{r setup, include = FALSE, warning = FALSE, message = FALSE}
+# Gestion des options sur les chunk  
+knitr::opts_chunk$set(warning = FALSE, 
+                      message = FALSE,
+                      collapse = FALSE,
+                      comment = "",
+                      #fig.width = 10, 
+                      #fig.asp = 0.618,
+                      fig.align = "center", 
+                      out.width = "95%")
+
+
+# Définition d'une palette de couleurs : 
+palette_couleur = c("#36648B", "#F4A460", "#9AFF9A", "#FFD700", "#838B8B","#EED5B7", "#FF82AB")
+
+```
+
+
+# Les méthodes semi-paramétriques 
+
+## Le modèle de Cox 
+
+### Lecture des données traitement de la base : 
+
+```{r results='hide'}
+library(tidyverse)
+Re = read.table("rossi.txt", header = TRUE)
+glimpse(Re)
+
+# Suppression de la variable race : 
+Re1 = Re[, -5]
+
+```
+
+
+### Etude la durée de survie selon la valeur d'une variable. (test de log-Rank)
+
+On regarde si les fonctions de survies des individus discriminés selon les modalités d'une variable, sont significativement similaires. 
+
+On effectue pour ça le test du log-rank à l'aide de la fonction Surv du package survival. 
+
+\[
+\left\{
+\begin{array}{l}
+H0 : \text{les fonctions de survie sont les mêmes,  p-value $\geq$ 0.05} \\
+H1 : \text{les fonctions de survie sont différentes} \\
+\end{array}
+\right.
+\]
+
+
+```{r}
+library(survival)
+# Test sur la variable financement : 
+survdiff(Surv(week, arrest) ~ fin, data = Re1)
+
+# Surv créer un objet avec week le temps de survie et arrest l'indicateur 
+# d’évènement. Fin est la variable servant à comparer les courbes. 
+
+```
+
+
+
+### Modélisation de Kaplan Meier :
+```{r}
+# Modélisation de kaplan meier, distinction sur la variable financement 
+s = survfit(Surv(week, arrest) ~ fin, data = Re1)
+library(ggfortify)
+library(ggplot2)
+autoplot(s) 
+```
+
+### Ajustement d'un modèle de Cox : 
+
+```{r}
+cox1 = coxph(formula = Surv(week, arrest) ~ fin + age + wexp + mar + 
+               paro + prio, data = Re1)
+summary(cox1)
+```
+Explication du test : 
+
+\[
+\left\{
+\begin{array}{l}
+H0 : \text{ $\beta_j$ = 0,  Pr(>|z|), prob(|U|> z), où U ~ N(0,1)} \\
+H1 : \text{$beta_j \neq 0$, p-value $\leq$ 0.05} \\
+\end{array}
+\right.
+\]
+Le se(coef) correspond au sqrt(var(beta)). 
+On en déduit que les variables significatives sont l'âge et le prio. 
+
+
+### Graphique de la fonction de survie : 
+
+Dans le cadre des fonction de Kaplan Meier, Aalen par défaut les covariables sont fixées à la valeur moyenne.
+
+```{r}
+kpmr = survfit(cox1) # Fonction de survie de Kaplan-Meier pour le modèle de cox
+
+summary(kpmr)
+
+plot(
+  kpmr,
+  ylim = c(0.5, 1),
+  lty = 5,
+  xlab = 'Semaine',
+  ylab = 'Proportion de non recidive',
+  main = 'Fonction de survie estimation de Kaplan-Meier',
+  col = palette_couleur[1:3], 
+  lwd = 2)
+
+legend(
+  "topright",  # Position de la légende
+  lty = 1,
+  cex = 1,
+  legend = c("KP", "lower", "upper"),
+  col = palette_couleur[1:3])
+
+```
+
+### Fonction de hasard cumulée avec l'estimateur de Breslow : 
+
+Interprétation Intuitive:
+
+Taux Instantané: La fonction de hasard représente le taux instantané de survenue de l'événement à un moment donné.   
+Par exemple, si h(t)=0.05h(t)=0.05 à t=10t=10 semaines, cela signifie que le taux de survenue de l'événement à 10 semaines est de 5% par unité de temps.  
+Conditionnelle à la Survie: La fonction de hasard est conditionnelle à la survie jusqu'à ce moment. Elle ne prend en compte que les individus qui n'ont pas encore subi l'événement.
+
+```{r}
+plot(
+  basehaz(cox1),
+  main = 'Fonction de hasard de baseline',
+  xlab = 'Valeur de la fonction de hasard',
+  ylab = "Temsp écoulé",
+  type = 'l',
+  col = palette_couleur[1],
+  lwd = 3
+)
+```
+
+
+### Fonction survie pour l'individu ayant les caractéristiques du premier individu : 
+
+```{r}
+# plot(survfit(cox1, newdata = Re1)) # fonction de survie pour tous les individus
+# title("Fonction de survie pour tous les individus")
+
+plot(survfit(cox1, newdata = Re1[1, ]),
+     main = "Fonction de survie pour un individu donné",
+     col = palette_couleur[1:3], 
+     ylim = c(0.5,1), 
+     lwd = 2, 
+     lty = 1)
+ 
+legend("bottomleft",
+       lty = 1,
+       cex = 1,
+       legend = c("KP", "lower", "upper"),
+       col = palette_couleur[1:3])
+```
+
+### Etude de l'effet d'une covariable (les autres étant fixées) :
+
+Exemple : effet de la var "financement" (0 ou 1)
+On fixe les autres à leur valeur moyenne.
+
+```{r}
+ReFin = data.frame(
+  fin = c(0, 1),
+  age = rep(mean(Re1$age), 2),
+  wexp = rep(mean(Re1$wexp), 2),
+  mar = rep(mean(Re1$mar), 2),
+  paro = rep(mean(Re1$paro), 2),
+  prio = rep(mean(Re1$prio), 2)
+)
+
+plot(
+  survfit(cox1, newdata = ReFin),
+  lty = c(1, 2),
+  ylim = c(.6, 1),
+  col = palette_couleur[4:5],
+  lwd = 2, 
+  main = "Fonction de survie selon la modalité de financement", 
+  ylab = "Probabilité de survie estimée", 
+  xlab = "Période de temps écoulée"
+)
+legend(
+  1,
+  0.8,
+  legend = c("fin=0", "fin=1"),
+  lty = c(1, 2),
+  col =  palette_couleur[4:5]
+)
+```
+
+### Sélection de variable une à une : 
+
+Remarque : on peut faire de la sélection de variables  en enlevant de façon itérative celles expliquant le moins (p-value la plus forte) exemple :
+ 
+```{r}
+cox2= coxph(formula=Surv(week,arrest)~fin+age+wexp+mar+prio,data=Re1)
+summary(cox2)
+```
+
+
+Test hypothèse de Hasard Proportionnel : (proportionnalité des risques)
+\[
+\left\{
+\begin{array}{l}
+H0 : \text{les résidus sont indépendants du temps} \\
+H1 : \text{les résidus dépendent du temps} \\
+\end{array}
+\right.
+\]
+
+Explication : Si H0 est rejetée, alors les résidus dépendent du temps
+
+### Test de hasard proportionnel, les résidus de Schoenfeld
+```{r}
+res = cox.zph(cox1)
+res
+
+# Représentation graphique
+par(mfrow = c(2, 4))
+plot(res)
+```
+
+
+# Les méthodes non-paramétriques  
+
+## La méthode de Kaplan meier : 
+
+### Génération de la base et importation des données 
+
+On créer une base de données avec des observations censurées. 
+
+```{r}
+library(survival)
+tempsGMP = c(rep(6, 4), 7, 9, 10, 10, 11, 13, 16, 17, 19, 20, 22, 23, 25, 32, 
+             32, 34, 35) # liste des observations
+finGMP = c(1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, rep(0, 5)) 
+# indication des obs censurées
+donnF = Surv(tempsGMP, finGMP) 
+head(donnF)
+
+```
+### Ajustement d'un modèle de survie avec la méthode de Kaplan Meier  :
+
+
+```{r}
+survKM = survfit(donnF ~ 1,
+                 data = donnF,
+                 type = "kaplan-meier",
+                 error = "greenwood")
+
+# Graphique de la fonction de survie moyenne : 
+
+plot(survKM, mark.time = TRUE, col = palette_couleur[1:3])
+title("Modèle de survie de Kaplan-Meier")
+legend("bottomleft",  
+       lty = 1,
+       cex = 1,
+       legend = c("KP", "lower", "upper"),
+       col = palette_couleur[1:3])
+
+# Intervalle de confiance et valeur modélisée pour l'individu 10 : 
+IC_KM = round(c(survKM$lower[10], survKM$surv[10], survKM$upper[10]),4)
+
+```
+
+## Le modèle de Fleming-Harrington : 
+
+### Modèle de Fleming-Harrington, intervalle méthode Tsiatis :
+
+```{r}
+# Par defaut, intervalle de confiance : conf.type='log' :
+survFH = survfit(donnF ~ 1,
+                 data = donnF,
+                 type = "fleming-harrington",
+                 error = "tsiatis")
+
+# Intervalle de confiance et valeur modélisée pour l'individu 10 : 
+IC_FH = round(c(survFH$lower[10], survFH$surv[10], survFH$upper[10]),4)
+
+```
+
+
+### Modèle de Fleming-Harrington, intervalle méthode delta : 
+
+```{r}
+survFHdelta = survfit(
+  donnF ~ 1,
+  data = donnF,
+  type = "fleming-harrington",
+  error = "tsiatis",
+  conf.type = "plain")
+
+IC_FHdelta = round(c(survFHdelta$lower[10], survFHdelta$surv[10], survFHdelta$upper[10]),4)
+
+```
+
+### Comparaison des résultats sur l'estimation du 10e individu de la base : 
+
+```{r}
+#Comparaison des modèles pour le 10e individu de la base 
+dt = data.frame(KM = IC_KM, FH = IC_FH, FHdelta = IC_FHdelta)
+rownames(dt) = c("lower","pred","upper")
+dt
+```
+
+
+### Représentation graphiques des trois modèles : 
+
+```{r}
+# Graphiques des trois modèles : 
+plot(
+  survKM,
+  mark.time = TRUE,
+  col = palette_couleur[1],
+  lwd = 2,
+  xlab = "Durée de survie",
+  ylab = "Probabilité de survie"
+)
+lines(survFH,
+      mark.time = TRUE,
+      col = palette_couleur[2],
+      lwd = 2)
+lines(survFHdelta,
+      mark.time = TRUE,
+      col = palette_couleur[3],
+      lwd = 2)
+title("Comparaison des modèles de survie")
+legend(
+  1,
+  0.4,
+  lty = 1,
+  cex = 1,
+  legend = c("KM", "FH", "FHdelta"),
+  col = palette_couleur[1:3]
+)
+```
+
+## Estimation par des lois usuelles : 
+
+### Estimation de la loi de X par une loi de Weibull :
+
+```{r}
+survweib = survreg(donnF ~ 1, dist = "weibull")
+survweib
+```
+### Estimation de la loi de X par une loi exponentielle :
+
+```{r}
+theta = sum(finGMP) / sum(tempsGMP)
+theta 
+
+survexp = survreg(donnF ~ 1, dist = "exponential")
+lambda = exp(-survexp$coefficients)
+lambda
+
+```
+# Examen 2018 : 
+
+## Exercice 2 : 
+
+### Importation des données et traitement de la base : 
+
+```{r}
+library(StMoMo)
+d = EWMaleData
+De = d$Dxt # décès
+
+ages = d$ages
+annees = d$years
+
+Ex = EWMaleData$Ext  # Expositions en milieu d'années
+Lx = Ex + De / 2 # Exposition en début d'année (approximation)
+
+# Calcul des taux de mortalité bruts pour 2011 : 
+q = De[, "2011"] / Lx[, "2011"] # taux bruts
+
+plot(
+  ages,
+  q,
+  type = 'l',
+  main = "Taux brut de mortalité",
+  col = palette_couleur[1],
+  lwd = 3
+)
+plot(
+  ages,
+  log(q),
+  type = 'l',
+  main = "Logarithme des taux bruts de mortalité",
+  col = palette_couleur[1],
+  lwd = 3
+)
+
+```
+
+
+### Calibration d'un modèle de Makeham-Gompertz : 
+
+#### Utilisation du package fmsb : 
+
+Utilisation de la fonction fitGm pour calibrer le modèle $h(x) = C + A \times exp(\beta_x)$
+
+Avec la fonction fitGm on peut faire le lien avec l'autre paramétrage du type : 
+
+$h(x) = \alpha + \beta \times \gamma^{x}$ où $x$ représente l'âge.
+
+```{r}
+library(fmsb)
+fit = fitGM(data = q) 
+
+A = fit[1]
+B = fit[2]
+C = fit[3]
+cat("Modélisation fitGM :  \n")
+c(A, B, C)
+
+# Lien avec l'autre paramétrage :
+alpha2 = C
+beta2 = A
+gamma2 = exp(B)
+cat("Apha, Beta, Gamma : \n")
+c(alpha2, beta2, gamma2)  
+
+# Construction du vecteur des probabilités de décès : 
+qM3 = 1 - exp(-C) * exp(-A / B * exp(B * ages) * (exp(B) - 1))
+
+# Représentation graphique de l'âge des individus : 
+plot(
+  ages,
+  q,
+  type = 'l',
+  ylab = "Probabilité de décès",
+  xlab = "Ages",
+  main = "Comparaison des taux de mortalités observés et estimés",
+  col = palette_couleur[1],
+  lwd = 2
+)
+lines(ages, qM3, col = palette_couleur[2], lwd = 2)
+legend(
+  1,
+  0.3,
+  lty = 1,
+  cex = 1,
+  legend = c("q observés", "q estimés"),
+  col = palette_couleur[1:2]
+)
+
+# Comparaison des taux de mortalités logarithmiques : 
+
+plot(
+  ages,
+  log(q),
+  type = 'l',
+  ylab = "Probabilité de décès",
+  xlab = "Ages",
+  main = "Comparaison des log de taux de mortalités observés et estimés",
+  col = palette_couleur[1],
+  lwd = 2)
+lines(ages, log(qM3), col = palette_couleur[2], lwd = 2)
+legend("topleft",
+  lty = 1,
+  cex = 1,
+  legend = c("q observés", "q G-M"),
+  col = palette_couleur[1:2]
+)
+
+```
+
+
+Interprétation des résultats : 
+
+Le modèle de Gompertz - Makeham, avec h croissant, ne peut pas modéliser correctement la mortalité aux âges inférieurs à 20 ans.
+
+#### Utilisation du package MortalityLaws : 
+
+```{r}
+library(MortalityLaws)
+
+#availableLaws() # Liste des modèle de mortalité du package 
+
+fit = MortalityLaw(x = 0:100, qx = q, law = "makeham")  #modèle h(x)= C + A exp(Bx)
+fit$coefficients
+A = fit$coefficients["A"]
+B = fit$coefficients["B"]
+C = fit$coefficients["C"]
+c(A, B, C)
+
+# Lien avec l'autre paramétrage (h(x)= alpha + beta gamma^x)
+alpha2 = C
+beta2 = A
+gamma2 = exp(B)
+c(alpha2, beta2, gamma2)
+
+# Estimation du taux de moralité de Lee-Carter 
+qM4 = 1 - exp(-C) * exp(-A / B * exp(B * ages) * (exp(B) - 1))
+
+
+# Représentation graphique et comparaison : 
+
+plot(
+  ages,
+  log(q),
+  type = 'l',
+  ylab = "Probabilité de décès",
+  xlab = "Ages",
+  main = "Comparaison des log de taux de mortalités observés et estimés",
+  col = palette_couleur[1],
+  lwd = 2)
+lines(ages, log(qM3), col = palette_couleur[2], lwd = 2)
+lines(ages, log(qM4), col = palette_couleur[3], lwd = 2)
+legend("topleft",
+  lty = 1,
+  cex = 1,
+  legend = c("q observés", "q G-M", "q G-M bis"),
+  col = palette_couleur[1:3]
+)
+```
+
+
+### Modélisation de Lee Carter : 
+
+Rappels sur la modélisation de Lee Carter : 
+
+$ln(\mu{(x,t)}) = \alpha_x + \beta_x \times k_t + \epsilon_{(x,t)}$
+
+Avec : \alpha_x = la valeur moyenne 
+
+\[
+\left\{
+\begin{array}{l}
+\alpha_x : \text{la valeur moyenne} \\
+k_t : \text{correspond à une évolution générale dans le temps}
+\beta_x : \text{la sensibilité du taux instantané par rapport à une variation de k_t} \\
+\end{array}
+\right.
+\]
+
+
+```{r}
+library(forecast)
+library(demography)
+muh = De / Ex
+Baseh = demogdata(
+  data = muh,
+  pop = Ex,
+  ages = ages,
+  years = annees,
+  type = "mortality",
+  label = 'G.B.',
+  name = 'Hommes',
+  lambda = 1)
+
+lch = lca(Baseh) # Lancement du modèle de Lee-Carter
+
+# Estimation de alpha_x
+plot(lch$age, lch$ax, col = palette_couleur[1])
+
+# Estimation de beta_x
+plot(lch$age, lch$bx, col = palette_couleur[1])
+
+# Estimation des k_t
+kt = lch$kt
+plot(annees, kt)
+
+```
+
+#### Méthode de Lee-Carter 1992 : Projection des Kt
+
+Rappel: les Kt représentent 
+
+Hypothèse : $k_t =  k_{t-1}+ d + e_t$
+
+```{r}
+
+# Projection des Kt à l'aide du modèle initial : 
+plot(lch)
+proj = forecast(lch, h = 20)
+plot(proj, plot.type = "component", main = "Projection des Kt prédits")
+
+# Projection des Kt à l'aide du modèle ARIMA : 
+ar = auto.arima(kt)
+plot(forecast(ar, h = 20), main = "Projection des kt prédits, Arima")
+
+```
+
+
+Interprétation (BA) : 
+
+- $a_x$ donne une indication sur la valeur de la mortalité moyenne  
+
+- $b_x$ la variation du taux instantané comporte trois phases. Le taux est de moins en moins déterminant sur les années de 0 à 20 ans ainsi que sur l'intervalle 60 à 100 ans. En revanche ce taux est croissant entre 20 à 60 ans. Ce qui correspond souvent à la période durant laquelle l'Homme est le plus actif. Le risque additionnel de décès à tendance à croître sur cette période. Enfin la période de 0 à 10 est celle qui admet un coefficient de taux instantané le plus fort du fait notamment de la mortalité infantile.   
+
+- $k_t$ est décroissant sur toute la période, ce qui permet de conclure que la mortalité tend à décroître sur la période observée et ainsi maintient le constat d'une diminution des causes de mortalité annexes. 
+
+
+#### Modèle de Lee Carter sans ajustement des Kt : 
+
+Dans cette partie on fait l'hypothèse que les $k_t$ sont constants dans le temps. 
+
+```{r}
+## L.C. sans ajustement des k_t
+lch_sans = lca(Baseh, adjust = "none")
+plot(lch$year,
+     lch$kt,
+     col = palette_couleur[1],
+     type = 'l',
+     main = "Effet de l'ajustement sur les k_t, Lee-Carter")
+lines(lch_sans$year, lch_sans$kt, col = palette_couleur[2])
+legend(
+  1960,
+  -20,
+  legend = c("Avec ajust.", "Sans ajust."),
+  col = palette_couleur[1:2],
+  lty = 1,
+  cex = 0.8
+)
+```
+
+#### Comparaison des modèles : 
+
+```{r}
+
+# Modéle de Lee Carter : 
+predh = lch$fitted$y  # c'est log(mu_{x,t}) qui est prédit
+mupred2011 = exp(predh[, 51])
+
+plot(
+  ages,
+  q,
+  type = 'l',
+  ylab = "Probabilité de décès",
+  xlab = "Ages",
+  main = "Comparaison des probabilités de décès",
+  col = palette_couleur[1],
+  lwd = 2
+)
+lines(ages, qM3, col = palette_couleur[2], lwd = 2)
+lines(ages,mupred2011,col = palette_couleur[3], lwd = 2)
+legend("topleft",
+  lty = 1,
+  cex = 1,
+  legend = c("q observés", "q G-M", "q Lee-Carter"),
+  col = palette_couleur[1:3]
+)
+
+
+# Représentation graphique de la différence entre les modèles : 
+plot(mupred2011 - qM3, 
+     main = "Différence : Lee-Carter et G-M")
+#max(abs(mupred2011 - qM3))
+
+# Comparaison graphique log(q) :
+plot(
+  ages,
+  log(q),
+  type = 'l',
+  ylab = "Log des probabilités de décès",
+  xlab = "Ages",
+  main = "Comparaison des log de taux de mortalités observés et estimés",
+  col = palette_couleur[1],
+  lwd = 2
+)
+lines(ages, log(qM3), col = palette_couleur[2], lwd = 2)
+lines(ages,predh[,51],col = palette_couleur[3], lwd = 2)
+lines(ages, log(qM4),col = palette_couleur[5], lwd = 2)
+legend("bottomright",
+  lty = 1,
+  cex = 1,
+  lwd = 2,
+  legend = c("q observés", "q G-M", "q Lee-Carter", "q G-M MortalityLaws"),
+  col = palette_couleur[c(1:3,5)]
+)
+
+
+
+```
+
+### Calcul des rentes : 
+
+```{r}
+
+### calcul des rentes
+# Projections des \mu{x,t} dans le futur :
+# projection standard du modèle de Lee-Carter :
+projh=forecast(lch,h=70)$rate$Hommes
+
+dim(projh)
+colnames(projh) = 2012:(2012 + 69)
+rownames(projh) = 0:100
+#View(projh)
+
+# nous souhaitons calculer la prime pure d'une rente viagère 
+# à partir de 2012 pour l'âge de 65 ans
+# a_x(t)= \sum_{k\ge 0} { \prod_{j=0}^k exp(-\mu_{x+j}(t+j)) *1/(1+r)^(k+1) }
+
+r = 0.035 # valeur du taux choisi pour le facteur d'actualisation
+
+# calcul de a_65(2012) pour les hommes :
+
+L = length(66:101)
+mu = projh[66:101, 1:L] # on limite aux âges 65-100
+dmu = diag(mu)
+prodexpmu = cumprod(exp(-dmu))
+a = 0
+for (k in 1:length(dmu))
+{
+  a = a + 1 / (1 + r) ^ (k) * prodexpmu[k]
+}
+a  # 13.164
+
+# Remarque : si on prolonge jusqu'à 120 ans avec les mêmes \mu(x,t) ?
+# (pour vérifier si négliger les âges > 110 est justifié)
+dmu120 = c(dmu, rep(dmu[L], 20))
+prodexpmu120 = cumprod(exp(-dmu120))
+a120 = 0
+for (k in 1:(L + 20))
+{
+  a120 = a120 + 1 / (1 + r) ^ (k) * prodexpmu120[k]
+}
+a120 # 13.174
+
+
+# Comparaison avec G.M. I  (fmsb)
+dmu = qM3[66:101]
+prodexpmu = cumprod(exp(-dmu))
+a = 0
+for (k in 1:length(dmu))
+{
+  a = a + 1 / (1 + r) ^ (k) * prodexpmu[k]
+}
+a
+# 12.13
+
+# Comparaison avec G.M. II  (Mortalitylaw)
+dmu = qM4[66:101]
+prodexpmu = cumprod(exp(-dmu))
+a = 0
+for (k in 1:length(dmu))
+{
+  a = a + 1 / (1 + r) ^ (k) * prodexpmu[k]
+}
+a
+# 12.77
+```
+
+
+# Examen 2019 : 
+
+
+
+
+
+
+# Examen 2023-2024 : 
+
+
+

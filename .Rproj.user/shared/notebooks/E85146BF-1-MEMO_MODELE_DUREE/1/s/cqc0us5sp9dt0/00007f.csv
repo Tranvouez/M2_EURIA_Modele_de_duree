@@ -1,0 +1,5 @@
+"0",""
+"0",""
+"0","# Représentation graphique de la différence entre les modèles : "
+"0","plot(mupred2011 - qM3, "
+"0","     main = ""Différence : Lee-Carter et G-M"")"

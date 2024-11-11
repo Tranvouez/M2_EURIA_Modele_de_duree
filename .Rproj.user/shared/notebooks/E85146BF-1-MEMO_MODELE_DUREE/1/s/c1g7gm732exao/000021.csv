@@ -1,0 +1,8 @@
+"0","survKM = survfit(donnF ~ 1,"
+"0","                 data = donnF,"
+"0","                 type = ""kaplan-meier"","
+"0","                 error = ""greenwood"")"
+"0",""
+"0","# Graphique de la fonction de survie moyenne : "
+"0",""
+"0","plot(survKM, mark.time = TRUE, col = c(""blue"", ""red"", ""green""))"

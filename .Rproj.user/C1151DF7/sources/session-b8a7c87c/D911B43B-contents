@@ -1,0 +1,106 @@
+# Human Mortality Database  (HMD)
+# http://www.mortality.org
+
+
+# Données pour la France de 1816 à 2021
+# Décès
+de = read.csv("DeathsFrance2024.csv", header = TRUE, sep = ";")
+str(de)
+# remarque : la classe d'âge "110" est en réalité "110 et plus".
+
+# Expositions
+ex = read.csv("ExposuresFrance2024.csv", header = TRUE, sep = ";")
+str(ex)
+
+# Force de mortalité : \mu_{x,t}= m_{x,t} (m_{x,t} taux de mortalité)
+age = 0:110
+annee = 1816:2021
+mu = de[, 3:5] / ex[, 3:5]
+mut = matrix(mu[, 3], length(age), length(annee))
+persp(
+  age[1:100],
+  annee,
+  log(mut[1:100, ]),
+  theta = -30,
+  col = "light green",
+  shade = TRUE
+)
+
+###################
+library(forecast)
+library(demography)
+
+# calibrage Lee Carter avec l'ensemble de données
+annee = unique(de$Year)
+nc = length(annee)
+age = unique(de$Age)
+nl = length(age)
+
+muf = matrix(de$Female / ex$Female, nl, nc)  # Données Femmes
+muh = matrix(de$Male / ex$Male, nl, nc)  # Données Hommes
+
+popf = matrix(ex$Female, nl, nc)
+poph = matrix(ex$Male, nl, nc)
+
+Baseh = demogdata(
+  data = muh,
+  pop = poph,
+  ages = age,
+  years = annee,
+  type = "mortality",
+  label = 'France',
+  name = 'Hommes',
+  lambda = 1
+)
+
+Basef = demogdata(
+  data = muf,
+  pop = popf,
+  ages = age,
+  years = annee,
+  type = "mortality",
+  label = 'France',
+  name = 'Femmes',
+  lambda = 1
+)
+
+lch = lca(Baseh)
+
+# Estimation de alpha_x
+plot(lch$age, lch$ax, col = "blue")
+
+# Estimation de beta_x
+plot(lch$age, lch$bx, col = "blue")
+
+# Estimation des k_t
+kt = lch$kt
+plot(annee, kt, col = 'blue')
+
+# Projection des k_t :
+# méthode de Lee & Carter (1992)
+# hyp.: k_t = k_{t-1}+d + e_t
+plot(lch)
+proj = forecast(lch, h = 20)
+plot(proj, plot.type = "component")
+par(mfrow = c(1, 1))
+# ou bien un auto-arima pour modéliser et projeter les k_t :
+ar = auto.arima(kt)
+ar
+plot(forecast(ar, h = 10))
+
+## L.C. sans ajustement des k_t
+lch_sans = lca(Baseh, adjust = "none")
+plot(lch$year,
+     lch$kt,
+     col = "blue",
+     type = 'l',
+     main = "Effet ajustement sur les k_t")
+lines(lch_sans$year, lch_sans$kt, col = 'red')
+legend(
+  1840,
+  -50,
+  legend = c("avec ajust.", "sans ajust."),
+  col = c("blue", "red"),
+  lty = 1,
+  cex = 0.8
+)

@@ -1,0 +1,343 @@
+---
+title: "Modèles de durée : TD et Examens "
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    toc: true
+    number_sections: true
+    toc_depth: 3
+    latex_engine: xelatex
+  header-includes:
+  - \usepackage{fontspec}
+  - \usepackage{unicode-math}
+---
+
+```{r setup, include = FALSE, warning = FALSE, message = FALSE}
+# Gestion des options sur les chunk  
+knitr::opts_chunk$set(warning = FALSE, 
+                      message = FALSE,
+                      collapse = FALSE,
+                      comment = "",
+                      fig.width = 10, 
+                      fig.asp = 0.618,
+                      fig.align = "center", 
+                      out.width = "100%")
+```
+
+
+# Les méthodes semi-paramétriques 
+
+## Le modèle de Cox 
+
+### Lecture des données traitement de la base : 
+
+```{r results='hide'}
+library(tidyverse)
+Re = read.table("rossi.txt", header = TRUE)
+glimpse(Re)
+
+# Suppression de la variable race : 
+Re1 = Re[, -5]
+
+```
+
+
+### Etude la durée de survie selon la valeur d'une variable. (test de log-Rank)
+
+On regarde si les fonctions de survies des individus discriminés selon les modalités d'une variable, sont significativement similaires. 
+
+On effectue pour ça le test du log-rank à l'aide de la fonction Surv du package survival. 
+
+\[
+\left\{
+\begin{array}{l}
+H0 : \text{les fonctions de survie sont les mêmes} \\
+H1 : \text{les fonctions de survie sont différentes} \\
+\end{array}
+\right.
+\]
+
+
+```{r}
+library(survival)
+# Test sur la variable financement : 
+survdiff(Surv(week, arrest) ~ fin, data = Re1)
+
+# Surv créer un objet avec week le temps de survie et arrest l'indicateur 
+# d’évènement. Fin est la variable servant à comparer les courbes. 
+
+```
+
+
+### Modélisation de Kaplan Meier :
+```{r}
+# Graphe sur les fonctions de survie partie financement :  
+s = survfit(Surv(week, arrest) ~ fin, data = Re1)
+library(ggfortify)
+library(ggplot2)
+autoplot(s) 
+```
+
+### Ajustement d'un modèle de Cox : 
+
+```{r}
+## Etablir le modèle de Cox : ----
+cox1 = coxph(formula = Surv(week, arrest) ~ fin + age + wexp + mar + 
+               paro + prio, data = Re1)
+summary(cox1)
+```
+
+Explication du test : 
+
+- H0 : beta_j = 0 ==>  Pr(>|z|) : prob(|U|> z), où U N(0,1)
+- H1 : beta_j != 0
+
+se(coef)  <=> sqrt(var(beta))
+
+Interprétation des résultats :
+
+Les variables explicatives  significatives (p-value < 0.05) sont : 
+- l'âge et le prio 
+
+
+### Q5 : Graphique de la fonction de survie : 
+
+Kaplan meier, Aalen par défaut les covariables sont fixées à la valeur moyenne
+
+```{r}
+kpmr = survfit(cox1)
+summary(kpmr)
+plot(
+  kpmr,
+  ylim = c(.7, 1),
+  xlab = 'Semaine',
+  ylab = 'Proportion de non recidive',
+  main = 'Fonction de survie',
+  col = c('red', 'blue', 'green')
+)
+legend(
+  1,
+  0.3,
+  lty = 1,
+  cex = 0.6,
+  legend = c("lower", "KP", "upper"),
+  col = c("red", "blue", "green")
+)
+
+# on ajoute aussi le palcement de la legende 
+
+
+
+```
+
+
+### Q6 : La fonction de hasard cumulée estimateur Breslow : 
+
+```{r}
+plot(basehaz(cox1), main = 'fonction de hasard de baseline', type = 'l')
+
+```
+
+
+### Q7 : Fonction survie pour l'individu ayant les caractéristiques du premier individu : 
+
+
+```{r}
+plot(survfit(cox1, newdata = Re1)) # fonction de survie pour tous les individus
+title("Fonction de survie pour tous les individus")
+
+# Fonction de survie pour un individu donné 
+plot(survfit(cox1, newdata = Re1[1, ])) 
+title("Fonction de survie pour un individu donné")
+legend(1, 0.3, lty = 1,  cex = 0.6, 
+  legend = c("lower", "KP", "upper"),
+  col = c("red", "blue", "green"))
+
+```
+
+### Q8 : Etude de l'effet d'une covariable (les autres étant fixées) :
+
+Exemple : effet de la var "financement" (0 ou 1)
+On fixe les autres à leur valeur moyenne.
+
+```{r}
+ReFin = data.frame(
+  fin = c(0, 1),
+  age = rep(mean(Re1$age), 2),
+  wexp = rep(mean(Re1$wexp), 2),
+  mar = rep(mean(Re1$mar), 2),
+  paro = rep(mean(Re1$paro), 2),
+  prio = rep(mean(Re1$prio), 2)
+)
+
+plot(survfit(cox1, newdata = ReFin),
+     lty = c(1, 2),
+     ylim = c(.6, 1))
+legend(1,0.8,legend = c("fin=0", "fin=1"), lty = c(1, 2))
+```
+
+
+### Q9 : Sélection de variable une à une : 
+
+Remarque : on peut faire de la sélection de variables  en enlevant de façon itérative celles expliquant le moins (p-value la plus forte) exemple :
+ 
+```{r}
+cox2= coxph(formula=Surv(week,arrest)~fin+age+wexp+mar+prio,data=Re1)
+summary(cox2)
+```
+
+Test hypothèse de Hasard Proportionnel : (proportionnalité des risques)----
+H0 : les résidus sont indépendants du temps
+H1 : les résidus dépendent du temps
+Explication : si H0 est rejetée, alors les résidus dépendent du temps
+
+### Q10 :  Résidus de Schoenfeld
+```{r}
+res=cox.zph(cox1)
+res
+par(mfrow=c(2,4))
+plot(res)
+```
+Interprétation des résidus de Schoenfeld :
+- H0 : les résidus sont indépendants du temps
+- H1 : les résidus dépendent du temps
+
+
+```{r }
+# Suppression de tous les objets 
+rm()
+```
+
+
+
+
+
+# Les méthodes non-paramétriques  
+
+## La méthode de Kaplan meier : 
+
+### Q1 : Génération de la base et importation des données 
+
+```{r}
+library(survival)
+tempsGMP = c(rep(6, 4), 7, 9, 10, 10, 11, 13, 16, 17, 19, 20, 22, 23, 25, 32, 
+             32, 34, 35) # liste des observations
+finGMP = c(1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, rep(0, 5)) 
+# indication des obs censurées
+donnF = Surv(tempsGMP, finGMP) 
+# création du base avec considération de variables censurées
+donnF
+
+```
+
+### Q2 : Ajustement d'un modèle de survie avec la méthode de Kaplan meier
+
+```{r}
+survKM = survfit(donnF ~ 1,
+                 data = donnF,
+                 type = "kaplan-meier",
+                 error = "greenwood")
+
+#plot(survKM, mark.time = TRUE, col = "black")
+
+cat("Paramètres du modèle de Kaplan meier : \n",
+    round(c(survKM$lower[10], survKM$surv[10], survKM$upper[10]),4))
+```
+
+### Q3 : Ajustement d Fleming-Harrington de la survie  :
+
+```{r}
+# Par defaut, intervalle de confiance : conf.type='log' :
+survFH = survfit(donnF ~ 1,
+                 data = donnF,
+                 type = "fleming-harrington",
+                 error = "tsiatis")
+
+# {
+# #plot(survKM, mark.time = TRUE, col = 'black')
+# lines(survFH, mark.time = TRUE, col = 'blue')
+# legend("bottomleft", legend = c("Kaplan-Meier", "Fleming-Harrington"),
+#        col = c("black", "blue"), lty = 1)
+# }
+
+cat("Paramètres du modèle Fleming-Harrington : ",
+c(survFH$lower[10], survFH$surv[10], survFH$upper[10]))
+
+```
+### Q4 : Méthode delta : 
+
+```{r}
+survFHdelta = survfit(
+  donnF ~ 1,
+  data = donnF,
+  type = "fleming-harrington",
+  error = "tsiatis",
+  conf.type = "plain"
+)
+
+cat("Paramètres du modèle Fleming-Harrington delta : ",
+    c(survFHdelta$lower[10], survFHdelta$surv[10], survFHdelta$upper[10]))
+```
+
+
+### Q5 : Représentation graphiques des trois modèles : 
+
+```{r}
+# Graphiques des trois modèles : 
+plot(survKM, mark.time = TRUE, col = 'black')
+lines(survFH, mark.time = TRUE, col = 'blue')
+lines(survFHdelta, mark.time = TRUE, col = 'red')
+title("Modèles de survie")
+legend(1, 0.3, lty = 1,  cex = 0.6, 
+  legend = c("KM", "FH", "FH_delta"),
+  col = c("black", "blue", "red"))
+```
+
+### Q6 : Estimation de la loi de X par une loi de Weibull :
+
+```{r}
+survweib = survreg(donnF ~ 1, dist = "weibull")
+survweib
+```
+
+
+### Q7 : Estimation de la loi de X par une loi exponentielle :
+
+```{r}
+theta = sum(finGMP) / sum(tempsGMP)
+theta 
+
+survexp = survreg(donnF ~ 1, dist = "exponential")
+lambda = exp(-survexp$coefficients)
+lambda
+
+```
+
+
+
+
+## TD 3 :
+### Q1 : 
+### Q2 :
+### Q3 :
+### Q4 :
+### Q5 :
+### Q6 :
+
+## TD 4 :
+### Q1 : 
+### Q2 :
+### Q3 :
+### Q4 :
+### Q5 :
+### Q6 :
+
+
+# Examen : 
+
+# Examen : 
+
+# Examen : 
+
+
+

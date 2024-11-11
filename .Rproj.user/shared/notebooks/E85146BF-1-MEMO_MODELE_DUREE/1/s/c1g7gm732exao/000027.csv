@@ -1,0 +1,4 @@
+"0",""
+"0","# Intervalle de confiance et valeur modélisée pour l'individu 10 : "
+"0","IC_KM = round(c(survKM$lower[10], survKM$surv[10], survKM$upper[10]),4)"
+"0",""
