@@ -628,7 +628,7 @@ plot(lch$year,
 lines(lch_sans$year, lch_sans$kt, col = palette_couleur[2])
 legend(
   1960,
-  -20,
+  -25,
   legend = c("Avec ajust.", "Sans ajust."),
   col = palette_couleur[1:2],
   lty = 1,
@@ -697,21 +697,21 @@ legend("bottomright",
 
 ### Calcul des rentes : 
 
+Nous souhaitons calculer la prime pure d'une rente viagère à partir de 2012 pour l'âge de 65 ans. 
+
+$a_x(t)= \sum_{k\ge 0} { \prod_{j=0}^k exp(-\mu_{x+j}(t+j)) *1/(1+r)^(k+1)}$
+
+
+#### Calcul à l'aide du modèle de Lee-Carter : 
+
 ```{r}
 
-### calcul des rentes
-# Projections des \mu{x,t} dans le futur :
-# projection standard du modèle de Lee-Carter :
-projh=forecast(lch,h=70)$rate$Hommes
+# Projections des \mu{x,t} dans le futur avec le modèle de Lee-Carter 
+projh = forecast(lch, h = 70)$rate$Hommes
 
-dim(projh)
+#dim(projh) # L'objet projh est de dimension 101 x 70 
 colnames(projh) = 2012:(2012 + 69)
 rownames(projh) = 0:100
-#View(projh)
-
-# nous souhaitons calculer la prime pure d'une rente viagère 
-# à partir de 2012 pour l'âge de 65 ans
-# a_x(t)= \sum_{k\ge 0} { \prod_{j=0}^k exp(-\mu_{x+j}(t+j)) *1/(1+r)^(k+1) }
 
 r = 0.035 # valeur du taux choisi pour le facteur d'actualisation
 
@@ -726,6 +726,7 @@ for (k in 1:length(dmu))
 {
   a = a + 1 / (1 + r) ^ (k) * prodexpmu[k]
 }
+cat("En s'arretant à 110 ans : ")
 a  # 13.164
 
 # Remarque : si on prolonge jusqu'à 120 ans avec les mêmes \mu(x,t) ?
@@ -737,8 +738,13 @@ for (k in 1:(L + 20))
 {
   a120 = a120 + 1 / (1 + r) ^ (k) * prodexpmu120[k]
 }
+cat("Avec la table jusque 120 ans : ")
 a120 # 13.174
 
+```
+#### Calcul à l'aide du modèle de Gompertz-Makeham : 
+
+```{r}
 
 # Comparaison avec G.M. I  (fmsb)
 dmu = qM3[66:101]
@@ -748,6 +754,7 @@ for (k in 1:length(dmu))
 {
   a = a + 1 / (1 + r) ^ (k) * prodexpmu[k]
 }
+cat("GM fmsb :")
 a
 # 12.13
 
@@ -759,19 +766,598 @@ for (k in 1:length(dmu))
 {
   a = a + 1 / (1 + r) ^ (k) * prodexpmu[k]
 }
+cat("GM LawMortality : ")
 a
 # 12.77
 ```
 
-
 # Examen 2019 : 
 
+## Exercice 1 : 
+
+### Importation des données : 
+
+```{r}
+Re = read.table(file = 'DATA/emploi.txt', header = TRUE)
+str(Re)
+#Re[Re$sex==2,5]=0
+library(survival)
+```
+
+
+### Estimateur de Kaplan-Meier : test de comparaison
+
+Rappel sur les tests : 
+
+- Le test du log-rank et test de Gehan : 
+
+\[
+\left\{
+\begin{array}{l}
+H0 : \text{les fonctions de survie sont les mêmes,  p-value $\geq$ 0.05} \\
+H1 : \text{les fonctions de survie sont différentes} \\
+\end{array}
+\right.
+\]
+
+
+```{r}
+
+# Test de comparaison des durées de survie selon le sexe
+survdiff(Surv(tfp, des) ~ sex, data = Re, rho = 0) # log-rank
+survdiff(Surv(tfp, des) ~ sex, data = Re, rho = 1) # Gehan
+library(ggfortify)
+s = survfit(Surv(tfp, des) ~ sex, data = Re, type = "kaplan-meier")
+autoplot(s)
+s
+
+```
+
+
+### Estimation par un modèle de Cox : 
+
+#### Modélisation : 
+
+Remarque :
+
+ties=c("efron","breslow","exact") permet de choisir la méthode à adopter en cas d'événements simultanés par défaut, c'est ici l'approximation d'Efron qui est utilisée.
+
+Ecriture du modèle de Cox : 
+
+\[
+h(t) = h_0(t) \exp(\beta_1 \text{pnoj} + \beta_2 \text{edu} + \beta_3 \text{sex} + \beta_4 \text{pres} + \beta_5 \text{lfx})
+\]
+
+où :
+- \( h(t) \) est la fonction de hasard à l'instant \( t \).
+- \( h_0(t) \) est la fonction de hasard de base à l'instant \( t \).
+- \( \beta_1, \beta_2, \beta_3, \beta_4, \beta_5 \) sont les coefficients des covariables.
+- \( \text{pnoj}, \text{edu}, \text{sex}, \text{pres}, \text{lfx} \) sont les covariables incluses dans le modèle.
+
+Analyse des résultats : 
+
+- On teste si les coefficients sont significativement différents de 0 au seuil de 0.05% 
+
+se(coef)  <=> sqrt(var(beta))
+Test H0 : beta_j=0   ==>  Pr(>|z|) : prob(|U|> z), où U N(0,1)
+
+
+```{r}
+cox1 = coxph(formula = Surv(tfp, des) ~ pnoj + edu + sex + pres + lfx,
+             data = Re)
+summary(cox1)
+```
 
 
 
+#### Représentation Graphique : 
+
+```{r}
+# (Kaplan Meier ou Aalen, Aalen par défaut)
+# les covariables sont fixées à la valeur moyenne
+summary(survfit(cox1))
+plot(
+  survfit(cox1),
+  ylim = c(0, 1),
+  xlab = 'mois',
+  ylab = 'Probabilité de survie',
+  main = 'Fonction de survie',
+  col = palette_couleur[1:3],
+  lwd = 2
+)
+legend(
+  "topright",
+  legend = c("Cox" , "lower" , "upper"),
+  lwd = 2,
+  col = palette_couleur[1:3]
+)
+
+# la fonction de hasard cumulée (estimateur de Breslow)
+plot(basehaz(cox1),
+     main = 'fonction de hasard de baseline',
+     type = 'l',
+     col = palette_couleur[1])
+
+# Fonctions de survie pour des individus ayant les caractéristiques observées
+#plot(survfit(cox1, newdata = Re))
+
+# fonction de survie pour des indiv. ayant les var explicat. identiques à l'ind. 1 :
+#plot(survfit(cox1, newdata = Re[1,]))
+```
+
+#### Hasard proportionnel pour chaque variable : 
+
+##### Les résidus Schoenfeld : 
+
+Test hypothèse de Hasard Proportionnel le test des résidus de Schoenfeld : (proportionnalité des risques)
+\[
+\left\{
+\begin{array}{l}
+H0 : \text{les résidus sont indépendants du temps} \\
+H1 : \text{les résidus dépendent du temps} \\
+\end{array}
+\right.
+\]
+
+Explication : Si H0 est rejetée, alors les résidus dépendent du temps
+
+Graphiquement on cherche à ne pas avoir de tendance pour attester que les résidus ne dépendent pas du temps. 
+
+
+```{r}
+
+# Test hypothèse de Hasard Proportionnel :
+# Résidus de Schoenfeld
+res = cox.zph(cox1)
+res
+# Projection graphique : 
+par(mfrow = c(2, 3))
+plot(res)
+
+# Remarque : 
+#on ne prend en compte que les événements correspondants à des obs 
+#et non des censures pour les résidus de Schoenfeld
+
+temps = as.numeric(rownames(res$y))
+length(temps)  
+
+```
+
+
+Interprétation : Les résidus de Schoenfeld nous montrent que la proportionnalité n'est pas vérifiée dans le cadre de la variable sex. Nous pouvons réaliser un modèle stratifié sur la variable sex pour contourner le problème.  
+
+##### L'estimation linéaire : (p35 cours)
+
+On cherche à tester la nullité du coefficient $\beta_1$ dans l'équation suivante :
+
+\[ r_{ik}^* = \beta_0 + \beta_1 \times t_i + \epsilon_i \]
+
+où :
+
+\begin{itemize}
+    \item $r_{ik}^*$ représente les résidus de Schoenfeld standardisé pour la $k$-ème covariable au temps $t_i$.
+    \item $\beta_0$ est l'ordonnée à l'origine, représentant la valeur moyenne des résidus de Schoenfeld lorsque $t_i = 0$.
+    \item $\beta_1$ est le coefficient de pente, représentant la variation des résidus de Schoenfeld en fonction du temps $t_i$.
+    \item $t_i$ est le temps d'événement pour le $i$-ème individu.
+    \item $\epsilon_i$ est le terme d'erreur, représentant la variabilité non expliquée par le modèle.
+\end{itemize}
+
+```{r}
+### test corrélations par méthode de régression linéaire (ne marche pas ?)
+# temps = Re[Re$des == 1, ]$tfp  # on ne prend pas les censures
+# regpnoj = lm(res$y[, 1] ~ temps)
+# summary(regpnoj)
+# 
+# regedu = lm(res$y[, 2] ~ temps)
+# summary(regedu)
+# 
+# regsex = lm(res$y[, 3] ~ temps)
+# summary(regsex)
+# # cela ne marche pas pour la var. "sex" .
+# 
+# regpres = lm(res$y[, 4] ~ temps)
+# summary(regpres)
+# 
+# reglfx = lm(res$y[, 5] ~ temps)
+# summary(reglfx)
+```
+
+
+### Modélisation stratifiée sur la variable Sex : 
+
+On scinde la population en deux groupe puis on applique un modèle par groupe. On rappelle que Sex 1 = Homme et Sex 2 = Femme. 
+
+```{r}
+coxStrafin =  coxph(formula = Surv(tfp, des) ~ strata(sex) + pnoj + edu +
+                      pres + lfx,data = Re)
+
+summary(coxStrafin)
+plot(
+  survfit(coxStrafin),
+  ylim = c(0, 1),
+  lty = c(1, 2),
+  main = 'Modèle de Cox stratifié / sexe', 
+  ylab = 'Probabilité de survie', 
+  xlab = "Nombre de mois",
+  col = palette_couleur[1:2], 
+  lwd = 2
+)
+legend(100,
+       0.8,
+       legend = c("sex=1", "sex=2"),
+       lty = c(1, 2), 
+       col = palette_couleur[1:2], 
+       lwd = 2)
+
+```
+Interprétation modèle : 
+
+Exemple sur l'indicateur de prestige de l'emploi courant. 
+
+Une augmentation d'une unité de prestige est associée à une diminution de 2.3% du risque de fin d'emploi (p-valeur = 1.14e-05, très significatif). 
+
+
+#### La fonction de hasard par sexe : 
+
+```{r}
+# la fonction de hasard cumulée (estimateur de Breslow)
+bh = basehaz(coxStrafin)
+s1 = which(bh$strata == "sex=1")
+s2 = which(bh$strata == "sex=2")
+plot(bh$time[s2], bh$hazard[s2], main = 'Fonction de hasard de baseline', type ='l', col = palette_couleur[1], lwd = 2)
+lines(bh$time[s1], bh$hazard[s1], col =palette_couleur[2])
+legend("topleft", lwd = 2, 
+       col = palette_couleur[1:2],
+       legend = c("Femme", "Homme"))
+```
+
+#### Comparaison entre les deux modèles : 
+
+##### Résultats de projection sur les mois 100 et 200 :
+
+```{r}
+# Modèle unique pour hommes : 
+indH = data.frame(
+  sex = 1,
+  pnoj = mean(Re$pnoj),
+  edu = mean(Re$edu),
+  pres = mean(Re$pres),
+  lfx = mean(Re$lfx)
+)
+sH = survfit(cox1, newdata = indH)
+m_homme = c(sH$surv[sH$time == 100], # 0.354
+  sH$surv[sH$time == 200] # 0.202
+  )
+
+
+# Modèle unique pour hommes et femmes :
+indF = data.frame(
+  sex = 2,
+  pnoj = mean(Re$pnoj),
+  edu = mean(Re$edu),
+  pres = mean(Re$pres),
+  lfx = mean(Re$lfx)
+)
+
+sF = survfit(cox1, newdata = indF)
+m_femme = c(
+sF$surv[sF$time == 100], # 0.215
+sF$surv[sF$time == 200] # 0.094
+)
+
+# Modèle stratifié pour hommes : 
+sH1 = survfit(coxStrafin, newdata = indH)
+mh_strat = c(
+sH1$surv[sH1$time == 101], # 0.355
+sH1$surv[sH1$time == 202] # 0.213
+)
+
+# Modèle stratifié pour femmes : 
+sF1 = survfit(coxStrafin, newdata = indF)
+mf_strat <- c(
+sF1$surv[sF1$time == 100], # 0.211
+sF1$surv[sF1$time == 200]  # 0.081
+)
+
+# Tableau résultats : 
+
+tab = matrix(
+  c(m_homme, m_femme, mh_strat, mf_strat),
+  nrow = 2,
+  byrow = TRUE)
+rownames(tab) = c('Mois 100 :', 'Mois 200: ')
+colnames(tab) = c('Homme', 'Femme', 'Homme-strat', 'Femme-strat')
+round(tab, 3)
+
+```
+
+##### Représentation graphique : 
+
+```{r}
+plot(
+  survfit(cox1, newdata = indH)$surv,
+  ylim = c(0, 1),
+  xlab = 'mois',
+  ylab = 'Proba survie',
+  main = 'Fonction de survie', 
+  col = palette_couleur[1], 
+  lwd = 2, 
+  type = 'l'
+)
+
+lines(
+  survfit(cox1, newdata = indF)$surv,
+  ylim = c(.1, 1),
+  xlab = 'mois',
+  ylab = 'Proba survie',
+  main = 'Fonction de survie',
+  col = palette_couleur[2], 
+  lwd = 2
+)
+
+lines(
+  survfit(coxStrafin, newdata = indH)$surv,
+  ylim = c(0, 1),
+  xlab = 'mois',
+  ylab = 'Proba survie',
+  main = 'Fonction de survie',
+  col = palette_couleur[3], 
+  lwd = 2
+)
+
+lines(
+  survfit(coxStrafin, newdata = indF)$surv,
+  ylim = c(0, 1),
+  xlab = 'mois',
+  ylab = 'Proba survie',
+  main = 'Fonction de survie',
+  col = palette_couleur[4], 
+  lwd = 2)
+
+legend(
+  "topright",
+  legend = c("Homme", "Femme", "Homme stratifié", "Femme stratifié"),
+  col = palette_couleur[1:4],
+  lty = 1,
+  cex = 0.8
+)
+
+```
+
+
+### Ajout de la variable Age au début de l'emploi :
+
+```{r}
+# Création de la variable : 
+agedeb = Re$tstart - Re$tb
+Re1 = data.frame(Re, agedeb)
+
+# Génération du modèle :
+coxStrafin1 =  coxph(
+  formula = Surv(tfp, des) ~ strata(sex) + pnoj + edu + pres + lfx + agedeb,
+  data = Re1
+)
+summary(coxStrafin1)
+
+# Attention à la corrélation entre les variables explicatives : (BA)
+# library(corrplot)
+# corrplot(cor(Re1[, c("pnoj", "edu", "pres", "lfx", "agedeb")]), method = "circle", diag = TRUE)
+
+
+```
+
+Interprétation des résultats : 
+
+- On s’aperçoit que l'ajout de la variable age au début de l'emploi n'est pas significative.
+- De plus la variable Expérience sur le marché de l'emploi n'est pas significative.
+
+```{r}
+coxStrafin2 =  coxph(formula = Surv(tfp, des) ~ strata(sex) + pnoj + edu +
+                       pres + agedeb,
+                     data = Re1)
+summary(coxStrafin2)
+
+```
+Interprétation : 
+
+- Toutes les variables sont significatives au seuil de 5%.
+
+##### Etude de la proportionnalité des risques :
+
+```{r}
+res = cox.zph(coxStrafin2)
+res
+par(mfrow = c(2, 2))
+plot(res)
+```
+
+Interprétation : 
+
+- Les résidus de Schoenfeld ne dépendent pas du temps pour les variables explicatives. 
 
 
 # Examen 2023-2024 : 
+
+# Exercice : 
+
+
+
+
+
+# Autres exercices : 
+
+## Exercice sur la modélisation de Lee-Carter 
+
+### Importation des données : 
+
+Importation des données de mortalité pour la France de 1816 à 2021.
+
+Référence du site [HMD](http://www.mortality.org).
+
+```{r}
+# Décès
+de = read.csv("DATA/DeathsFrance2024.csv", header = TRUE, sep = ";")
+#str(de)
+# remarque : la classe d'âge "110" est en réalité "110 et plus".
+
+# Expositions
+ex = read.csv("DATA/ExposuresFrance2024.csv", header = TRUE, sep = ";")
+#str(ex)
+
+# Force de mortalité : \mu_{x,t}= m_{x,t} (m_{x,t} taux de mortalité)
+age = 0:110
+annee = 1816:2021
+mu = de[, 3:5] / ex[, 3:5]
+mut = matrix(mu[, 3], length(age), length(annee))
+persp(
+  age[1:100],
+  annee,
+  log(mut[1:100, ]),
+  theta = -30,
+  col = "light green",
+  shade = TRUE
+)
+
+```
+### Modélisation de Lee-Carter : 
+
+```{r}
+library(forecast)
+library(demography)
+
+# Calibrage Lee-Carter avec l'ensemble de données
+annee = unique(de$Year)
+nc = length(annee)
+age = unique(de$Age)
+nl = length(age)
+
+muf = matrix(de$Female / ex$Female, nl, nc)  # Données Femmes
+muh = matrix(de$Male / ex$Male, nl, nc)  # Données Hommes
+
+popf = matrix(ex$Female, nl, nc)
+poph = matrix(ex$Male, nl, nc)
+
+Baseh = demogdata(
+  data = muh,
+  pop = poph,
+  ages = age,
+  years = annee,
+  type = "mortality",
+  label = 'France',
+  name = 'Hommes',
+  lambda = 1
+)
+
+Basef = demogdata(
+  data = muf,
+  pop = popf,
+  ages = age,
+  years = annee,
+  type = "mortality",
+  label = 'France',
+  name = 'Femmes',
+  lambda = 1
+)
+
+lch = lca(Baseh)
+
+# Estimation de alpha_x
+plot(
+  lch$age,
+  lch$ax,
+  main = "Estimation de la valeur moyenne alpha_x",
+  col = palette_couleur[1],
+  xlab = "Age",
+  ylab = "Valeur moyenne", 
+  type = 'l', 
+  lwd = 2
+)
+
+# Estimation de beta_x
+plot(
+  lch$age,
+  lch$bx,
+  main = "Estimation de la sensibilité beta_x",
+  col = palette_couleur[1],
+  xlab = "Age",
+  ylab = "Sensibilité", 
+  type = 'l',
+  lwd = 2
+)
+
+# Estimation des k_t
+kt = lch$kt
+plot(
+  annee,
+  kt,
+  main = "Estimation des k_t",
+  col = palette_couleur[1],
+  xlab = "Année",
+  ylab = "k_t", 
+  type = 'l',
+  lwd = 2
+)
+
+```
+
+### Projection des k_t méthode de Lee & Carter (1992) : 
+
+On fait l'hypothèse que les $k_t$ sont déterminés par la relation suivante :
+
+\[
+k_t = k_{t-1} + d + \epsilon_t
+\]
+
+avec :
+
+- $k_t$ : les valeurs de $k$ à l'instant $t$.
+- $k_{t-1}$ : les valeurs de $k$ à l'instant $t-1$.
+- $d$ : une constante.
+- $epsilon_t$ : un bruit blanc.
+
+
+```{r}
+plot(lch) # Affichage des résultats
+
+# Projection des k_t à l'aide du modèle initial :
+proj = forecast(lch, h = 20)
+plot(proj, plot.type = "component")
+par(mfrow = c(1, 1))
+
+# Ou bien un auto-arima pour modéliser et projeter les k_t :
+ar = auto.arima(kt)
+plot(forecast(ar, h = 10))
+
+# Modèle sans ajustement des Kt : 
+lch_sans = lca(Baseh, adjust = "none")
+
+```
+
+
+#### Comparaison avec et sans ajustement des $k_t$ : 
+
+```{r}
+plot(
+  lch$year,
+  lch$kt,
+  col = palette_couleur[1],
+  type = 'l',
+  main = "Effet ajustement sur les k_t",
+  xlab = "Année",
+  ylab = "k_t",
+  lwd = 2
+)
+lines(lch_sans$year, lch_sans$kt, col = palette_couleur[2], lwd = 2)
+legend(
+  1840,-50,
+  legend = c("avec ajust.", "sans ajust."),
+  col = palette_couleur[1:2],
+  lty = 1,
+  cex = 0.8
+)
+
+```
+
 
 
 

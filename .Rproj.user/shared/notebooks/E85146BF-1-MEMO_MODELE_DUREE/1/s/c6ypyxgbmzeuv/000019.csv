@@ -1,0 +1,8 @@
+"0","legend("
+"0","  1840,-50,"
+"0","  legend = c(""avec ajust."", ""sans ajust.""),"
+"0","  col = palette_couleur[1:2],"
+"0","  lty = 1,"
+"0","  cex = 0.8"
+"0",")"
+"0",""

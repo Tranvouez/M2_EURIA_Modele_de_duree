@@ -1,0 +1,249 @@
+---
+title: "Master 2 - TD Modèles de durée"
+author: "Franck Vermet"
+date: "Janvier 2024"
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+  pdf_document:
+    latex_engine: xelatex
+always_allow_html: true
+html_document: default
+---
+  
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Exercice 1 
+Examen de Janvier 2024. Données PBC (Primary Biliary Cirrhosis). L’objectif est d’étudier le temps de survie pour les patients atteints de cirrhose biliaire primitive.
+La cirrhose biliaire primitive est une maladie chronique du foie rare mais mortelle, de cause inconnue, avec une prévalence d'environ 50 cas par million d'habitants. L'événement pathologique primaire semble être la destruction des canaux biliaires interlobulaires, qui peut être médiée par des mécanismes immunologiques.
+Entre janvier 1974 et mai 1984, la Mayo Clinic a mené un essai randomisé en double aveugle sur la cirrhose biliaire primitive du foie (CBP), comparant le médicament D-pénicillamine (DPCA) à un placebo. Quatre cent vingt-quatre patients répondant aux critères d'éligibilité ont été vus à la clinique pendant la période d'inscription à l'essai. Le médecin traitant et le patient ont accepté de participer à l'essai randomisé dans 312 des 424 cas. La date de la randomisation et un grand nombre de paramètres cliniques, biochimiques, sérologiques et histologiques ont été enregistrés pour chacun des 312 patients de l'essai clinique. Les données de l'essai ont été analysées en 1986 pour être présentées dans la littérature clinique. Pour cette analyse, l'état de la maladie et de la survie en juillet 1986 a été enregistré pour le plus grand nombre possible de patients. À cette date, 125 des 312 patients étaient décédés, dont 11 seulement n'étaient pas attribuables à la CBP. Huit patients avaient été perdus de vue et 19 avaient subi une transplantation hépatique.
+
+
+
+```{r}
+library(randomForestSRC)
+library(survival)
+data(pbc, package = "randomForestSRC")
+x=pbc[1:312,]
+p=dim(x)[2] ; E=c()
+for (i in 1:p)
+{if (sum(is.na(x[,i]))>0)
+{E=c(E,i)}}
+x=x[,-E] # on a enlevé les variables avec valeurs manquantes (NA)
+dim(x)
+```
+
+
+```{r}
+library(ggfortify)
+s = survfit(Surv(days,status)~1,data = x,type = "kaplan-meier")
+autoplot(s)
+s
+i=which(s$time==400)
+i
+s$surv[i]
+```
+
+## 2) Test de comparaison des durées de survie selon treatment
+```{r}
+survdiff(Surv(days,status)~treatment,data=x)
+library(ggfortify)
+s = survfit(Surv(days,status)~treatment,data = x,type = "kaplan-meier")
+autoplot(s)
+s
+```
+La p-value est élevée, la différence entre les lois de survie selon celltype n'est donc pas significative.
+
+## 3) Test de comparaison des durées de survie selon le sexe
+```{r}
+survdiff(Surv(days,status)~sex,data=x)
+library(ggfortify)
+s = survfit(Surv(days,status)~sex,data = x,type = "kaplan-meier")
+autoplot(s)
+s
+```
+
+
+La p-value est de 0.04, la différence entre les lois de survie selon le traitement est donc significative au niveau de rejet 0.05.
+
+## 4) Expliquer la duréee de survie en fonction des variables explicatives ci-dessus par un modèle de Cox.
+
+Remarque : 
+ ties=c("efron","breslow","exact") permet de choisir la méthode à adopter en cas d'événements simultanés
+Par défaut, c'est ici l'approximation d'Efron qui est utilisée.
+
+```{r}
+cox0= coxph(formula=Surv(days,status)~.,data=x)
+summary(cox0)
+tcox0=survfit(cox0,newdata=x[1,])
+i=which(tcox0$time==400)
+i
+tcox0$surv[i]
+```
+Dans le summary, les hypothèses $H_0 : \beta_j=0$ sont testées.  Les quantités $Pr(>|z|)$ sont $P(|U|> z)$, avec $U$ de loi normale ${\cal N}(0,1)$.
+La quantité $se(coef)$ est  l'écart-type de l'estimateur de $\beta_j$.
+
+On peut calibrer des modèles plus simples en retirant les variables les moins significatives.
+
+```{r}
+cox1= coxph(formula=Surv(days,status)~age+edema+bili+albumin+sgot+prothrombin+stage,data=x)
+summary(cox1)
+```
+
+
+
+Nous pouvons tracer le graphe de la fonction de survie (Kaplan Meier ou Aalen, c'est Aalen par défaut).
+Les covariables sont fixées à leur valeur moyenne.
+```{r}
+summary(survfit(cox1))
+plot(survfit(cox1), ylim=c(.1,1), xlab='mois',ylab='Proba survie', main='Fonction de survie')
+```
+
+Nous pouvons tracer la fonction de hasard cumulée (estimateur de Breslow).
+
+```{r}
+plot(basehaz(cox1),main='fonction de hasard de baseline',type='l')
+```
+Nous pouvons tracer les fonctions de survie pour des individus ayant les caractéristiques observées.
+```{r}
+plot(survfit(cox1,newdata=x))
+```
+Ou la fonction de survie pour des individus ayant les var explicatives identiques à l'individu 1 par exemple.
+```{r}
+plot(survfit(cox1,newdata=x[1,]))
+tcox1=survfit(cox1,newdata=x[1,])
+i=which(tcox1$time==400)
+i
+tcox1$surv[i]
+```
+
+ On test l'hypothèse de Hasard Proportionnel, avec les résidus de Schoenfeld.
+```{r}
+res=cox.zph(cox1)
+res
+par(mfrow=c(3,3))
+plot(res)
+```
+
+
+## Forêt aléatoire de survie : package randomForestSRC
+
+Voir : 
+https://www.randomforestsrc.org/articles/getstarted.html
+
+https://www.randomforestsrc.org/articles/survival.html
+
+https://www.randomforestsrc.org/reference/rfsrc.html
+
+https://www.randomforestsrc.org/cheatsheets.pdf
+
+```{r}
+library(randomForestSRC)
+v.obj <- rfsrc(Surv(days,status)~., data = x, 
+                   ntree = 100)
+
+## plot tree number 3
+plot(get.tree(v.obj, 3))
+```
+
+Résultats de l'apprentissage :
+```{r}
+print(v.obj)
+```
+
+Il est possible de récupérer directement le C-index :
+```{r}
+get.cindex(time=x$days,censoring=x$status,predicted=v.obj$predicted.oob)
+```
+
+
+Le graphe de la fonction de survie pour les 10 premiers individus :
+```{r}
+
+matplot(v.obj$time.interest,  t(v.obj$survival.oob[1:10, ]),
+    xlab = "Time", ylab = "Survival", type = "l", lty = 1)
+```
+
+
+Comparaison des fonctions de survie entre une forêt aléatoire de survie et le modèle de Cox, pour l'individu 1:
+
+```{r}
+plot(v.obj$time.interest,  t(v.obj$survival.oob[1, ]),
+    xlab = "Time", ylab = "Survival", type = "l", lty = 1,col='blue')
+lines(tcox1$time,tcox1$surv, col='red')
+lines(tcox0$time,tcox0$surv, col='green')
+
+i=which(v.obj$time.interest==400)
+i
+v.obj$survival.oob[1,i ]
+```
+
+
+La fonction plot.survival permet d'avoir une synthèse graphique de résultats :  
+```{r}
+plot.survival(v.obj, subset = 1)
+```
+
+Performances du modèle RSF :
+
+```{r}
+## obtain Brier score using KM and RSF censoring distribution estimators
+bs.km <- get.brier.survival(v.obj, cens.model = "km")$brier.score
+bs.rsf <- get.brier.survival(v.obj, cens.model = "rfsrc")$brier.score
+
+## plot the brier score
+plot(bs.km, type = "s", col = 2)
+lines(bs.rsf, type ="s", col = 4)
+legend("topright", legend = c("cens.model = km", "cens.model = rfsrc"), fill = c(2,4))
+```
+
+Importance des variables (VIMP) :
+
+Plusieurs méthodes sont possibles pour l'importance d'une variable $x$ : 
+
+- importance = "permute" : calcul d'importance par permutation aléatoire des valeurs de $x$ observées sur les exemples OOB.
+
+- importance = "random" : calcul d'importance par choix aléatoire gauche/droite lorsqu'une coupure se fait avec la variable $x$.
+
+- importance = "anti" : calcul d'importance en choisissant le choix opposé à celui proposé.
+
+```{r}
+imp1=subsample(v.obj,importance = "anti")
+plot(imp1)
+```
+```{r}
+imp2=subsample(v.obj,importance="permute")
+plot(imp2)
+```
+
+```{r}
+imp3=subsample(v.obj,importance="random")
+plot(imp3)
+```
+
+
+```{r}
+library(randomForestSRC)
+v.obj <- rfsrc(Surv(days,status)~ age + edema + bili + albumin + 
+    sgot + prothrombin + stage, data = x, 
+                   ntree = 100)
+
+## plot tree number 3
+plot(get.tree(v.obj, 3))
+
+get.cindex(time=x$days,censoring=x$status,predicted=v.obj$predicted.oob)
+```
+
+```{r}
+plot(v.obj$time.interest,  t(v.obj$survival.oob[1, ]),
+    xlab = "Time", ylab = "Survival", type = "l", lty = 1,col='blue')
+lines(tcox1$time,tcox1$surv, col='red')
+
+
+i=which(v.obj$time.interest==400)
+i
+v.obj$survival.oob[1,i ]
+```

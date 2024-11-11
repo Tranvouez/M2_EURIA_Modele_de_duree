@@ -1,0 +1,194 @@
+# Modèle de Cox
+# Données Emploi
+
+Re = read.table(file = 'emploi.txt', header = TRUE)
+str(Re)
+#Re[Re$sex==2,5]=0
+library(survival)
+
+# 1.
+# Test de comparaison des durées de survie selon le sexe
+survdiff(Surv(tfp, des) ~ sex, data = Re, rho = 0) # log-rank
+survdiff(Surv(tfp, des) ~ sex, data = Re, rho = 1) # Gehan
+library(ggfortify)
+s = survfit(Surv(tfp, des) ~ sex, data = Re, type = "kaplan-meier")
+autoplot(s)
+s
+
+#2.
+# Ajustement d'un modèle de Cox
+
+# Remarque :
+# ties=c("efron","breslow","exact") permet de choisir la méthode à adopter en cas d'événements simultanés
+# par défaut, c'est ici l'approximation d'Efron qui est utilisée.
+
+cox1 = coxph(formula = Surv(tfp, des) ~ pnoj + edu + sex + pres + lfx,
+             data = Re)
+summary(cox1)
+# se(coef)  <=> sqrt(var(beta))
+# Test H0 : beta_j=0   ==>  Pr(>|z|) : prob(|U|> z), où U N(0,1)
+
+# Graphe de la fonction de survie :
+# (Kaplan Meier ou Aalen, Aalen par défaut)
+# les covariables sont fixées à la valeur moyenne
+summary(survfit(cox1))
+plot(
+  survfit(cox1),
+  ylim = c(.1, 1),
+  xlab = 'mois',
+  ylab = 'Proba survie',
+  main = 'Fonction de survie'
+)
+
+# la fonction de hasard cumulée (estimateur de Breslow)
+plot(basehaz(cox1), main = 'fonction de hasard de baseline', type = 'l')
+
+# Fonctions de survie pour des individus ayant les caractéristiques observées
+plot(survfit(cox1, newdata = Re))
+
+# fonction de survie pour des indiv. ayant les var explicat. identiques à l'ind. 1 :
+plot(survfit(cox1, newdata = Re[1, ]))
+
+
+# Test hypothèse de Hasard Proportionnel :
+# Résidus de Schoenfeld
+res = cox.zph(cox1)
+res
+par(mfrow = c(2, 3))
+plot(res)
+
+temps = as.numeric(rownames(res$y))
+length(temps)  # remarque : on ne prend en compte que les événements correspondants à des obs et non des censures pour les résidus de Schoenfeld
+
+### test correlations par méthode de régression linéaire (ne marche pas ?)
+temps = Re[Re$des == 1, ]$tfp  # on ne prend pas les censures
+regpnoj = lm(res$y[, 1] ~ temps)
+summary(regpnoj)
+
+regedu = lm(res$y[, 2] ~ temps)
+summary(regedu)
+
+
+regsex = lm(res$y[, 3] ~ temps)
+summary(regsex)
+# cela ne marche pas pour la var. "sex" .
+
+regpres = lm(res$y[, 4] ~ temps)
+summary(regpres)
+
+reglfx = lm(res$y[, 5] ~ temps)
+summary(reglfx)
+
+
+# On peut aussi faire un modèle stratifié :
+# on scinde la pop. en 2 groupes : sex=1 ou sex=2
+# et on calibre un Cox avec sur les autres variables :
+coxStrafin =  coxph(formula = Surv(tfp, des) ~ strata(sex) + pnoj + edu +
+                      pres + lfx,
+                    data = Re)
+
+summary(coxStrafin)
+plot(
+  survfit(coxStrafin),
+  ylim = c(0, 1),
+  lty = c(1, 2),
+  main = 'Modèle de Cox stratifié / sexe'
+)
+legend(100,
+       0.8,
+       legend = c("sex=1", "sex=2"),
+       lty = c(1, 2))
+
+# la fonction de hasard cumulée (estimateur de Breslow)
+bh = basehaz(coxStrafin)
+s1 = which(bh$strata == "sex=1")
+s2 = which(bh$strata == "sex=2")
+plot(bh$time[s2], bh$hazard[s2], main = 'fonction de hasard de baseline', type =
+       'l')
+lines(bh$time[s1], bh$hazard[s1], col = 'red')
+
+# comparaison entre les deux modèles :
+# modèle unique pour hommes et femmes :
+indH = data.frame(
+  sex = 1,
+  pnoj = mean(Re$pnoj),
+  edu = mean(Re$edu),
+  pres = mean(Re$pres),
+  lfx = mean(Re$lfx)
+)
+sH = survfit(cox1, newdata = indH)
+plot(
+  survfit(cox1, newdata = indH),
+  ylim = c(0, 1),
+  xlab = 'mois',
+  ylab = 'Proba survie',
+  main = 'Fonction de survie'
+)
+
+sH$surv[sH$time == 100] # 0.354
+sH$surv[sH$time == 200] # 0.202
+
+indF = data.frame(
+  sex = 2,
+  pnoj = mean(Re$pnoj),
+  edu = mean(Re$edu),
+  pres = mean(Re$pres),
+  lfx = mean(Re$lfx)
+)
+sF = survfit(cox1, newdata = indF)
+lines(
+  survfit(cox1, newdata = indF),
+  ylim = c(.1, 1),
+  xlab = 'mois',
+  ylab = 'Proba survie',
+  main = 'Fonction de survie',
+  col = 'red'
+)
+
+sF$surv[sF$time == 100] # 0.215
+sF$surv[sF$time == 200] # 0.094
+
+# modèle stratifié
+sH1 = survfit(coxStrafin, newdata = indH)
+sH1$surv[sH1$time == 101] # 0.355
+sH1$surv[sH1$time == 202] # 0.213
+lines(
+  survfit(coxStrafin, newdata = indH),
+  ylim = c(0, 1),
+  xlab = 'mois',
+  ylab = 'Proba survie',
+  main = 'Fonction de survie',
+  col = 'cyan'
+)
+
+sF1 = survfit(coxStrafin, newdata = indF)
+sF1$surv[sF1$time == 100] # 0.211
+sF1$surv[sF1$time == 200] # 0.081
+lines(
+  survfit(coxStrafin, newdata = indF),
+  ylim = c(0, 1),
+  xlab = 'mois',
+  ylab = 'Proba survie',
+  main = 'Fonction de survie',
+  col = 'green'
+)
+
+##################################################@
+### Prise en compte de l'age au début de l'emploi
+agedeb = Re$tstart - Re$tb
+Re1 = data.frame(Re, agedeb)
+
+coxStrafin1 =  coxph(
+  formula = Surv(tfp, des) ~ strata(sex) + pnoj + edu + pres + lfx + agedeb,
+  data = Re1
+)
+summary(coxStrafin1)
+coxStrafin2 =  coxph(formula = Surv(tfp, des) ~ strata(sex) + pnoj + edu +
+                       pres + agedeb,
+                     data = Re1)
+summary(coxStrafin2)
+
+res = cox.zph(coxStrafin2)
+res
+par(mfrow = c(2, 2))
+plot(res)

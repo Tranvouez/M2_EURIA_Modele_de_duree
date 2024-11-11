@@ -1,0 +1,4 @@
+"0",""
+"0","# Ou bien un auto-arima pour modéliser et projeter les k_t :"
+"0","ar = auto.arima(kt)"
+"0","plot(forecast(ar, h = 10))"
