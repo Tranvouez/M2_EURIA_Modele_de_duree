@@ -7,3 +7,8 @@
 "0","                      #fig.asp = 0.618,"
 "0","                      fig.align = ""center"", "
 "0","                      out.width = ""95%"")"
+"0",""
+"0",""
+"0","# Définition d'une palette de couleurs : "
+"0","palette_couleur = c(""#36648B"", ""#F4A460"", ""#9AFF9A"", ""#FFD700"", ""#838B8B"",""#EED5B7"", ""#FF82AB"")"
+"0",""

@@ -1,4 +1,0 @@
-"0",""
-"0","# Projection des k_t à l'aide du modèle initial :"
-"0","proj = forecast(lch, h = 20)"
-"0","plot(proj, plot.type = ""component"")"

@@ -10,6 +10,8 @@ output:
   header-includes:
   - \usepackage{fontspec}
   - \usepackage{unicode-math}
+always_allow_html: true
+html_document: default
 ---
 
 ```{r setup, include = FALSE, warning = FALSE, message = FALSE}
@@ -881,7 +883,8 @@ plot(basehaz(cox1),
 # Fonctions de survie pour des individus ayant les caractéristiques observées
 #plot(survfit(cox1, newdata = Re))
 
-# fonction de survie pour des indiv. ayant les var explicat. identiques à l'ind. 1 :
+# fonction de survie pour des indiv. ayant les var explicat. 
+# identiques à l'ind. 1 :
 #plot(survfit(cox1, newdata = Re[1,]))
 ```
 
@@ -1004,11 +1007,21 @@ Une augmentation d'une unité de prestige est associée à une diminution de 2.3
 bh = basehaz(coxStrafin)
 s1 = which(bh$strata == "sex=1")
 s2 = which(bh$strata == "sex=2")
-plot(bh$time[s2], bh$hazard[s2], main = 'Fonction de hasard de baseline', type ='l', col = palette_couleur[1], lwd = 2)
-lines(bh$time[s1], bh$hazard[s1], col =palette_couleur[2])
-legend("topleft", lwd = 2, 
-       col = palette_couleur[1:2],
-       legend = c("Femme", "Homme"))
+plot(
+  bh$time[s2],
+  bh$hazard[s2],
+  main = 'Fonction de hasard de baseline',
+  type = 'l',
+  col = palette_couleur[1],
+  lwd = 2
+)
+lines(bh$time[s1], bh$hazard[s1], col = palette_couleur[2])
+legend(
+  "topleft",
+  lwd = 2,
+  col = palette_couleur[1:2],
+  legend = c("Femme", "Homme")
+)
 ```
 
 #### Comparaison entre les deux modèles : 
@@ -1141,7 +1154,8 @@ summary(coxStrafin1)
 
 # Attention à la corrélation entre les variables explicatives : (BA)
 # library(corrplot)
-# corrplot(cor(Re1[, c("pnoj", "edu", "pres", "lfx", "agedeb")]), method = "circle", diag = TRUE)
+# corrplot(cor(Re1[, c("pnoj", "edu", "pres", "lfx", "agedeb")]), 
+# method = "circle", diag = TRUE)
 
 
 ```
@@ -1175,13 +1189,359 @@ Interprétation :
 
 - Les résidus de Schoenfeld ne dépendent pas du temps pour les variables explicatives. 
 
-
 # Examen 2023-2024 : 
 
-# Exercice : 
+Examen de Janvier 2024. Données PBC (Primary Biliary Cirrhosis). L’objectif est d’étudier le temps de survie pour les patients atteints de cirrhose biliaire primitive.
+La cirrhose biliaire primitive est une maladie chronique du foie rare mais mortelle, de cause inconnue, avec une prévalence d'environ 50 cas par million d'habitants. L'événement pathologique primaire semble être la destruction des canaux biliaires interlobulaires, qui peut être médiée par des mécanismes immunologiques.
+Entre janvier 1974 et mai 1984, la Mayo Clinic a mené un essai randomisé en double aveugle sur la cirrhose biliaire primitive du foie (CBP), comparant le médicament D-pénicillamine (DPCA) à un placebo. Quatre cent vingt-quatre patients répondant aux critères d'éligibilité ont été vus à la clinique pendant la période d'inscription à l'essai. Le médecin traitant et le patient ont accepté de participer à l'essai randomisé dans 312 des 424 cas. La date de la randomisation et un grand nombre de paramètres cliniques, biochimiques, sérologiques et histologiques ont été enregistrés pour chacun des 312 patients de l'essai clinique. Les données de l'essai ont été analysées en 1986 pour être présentées dans la littérature clinique. Pour cette analyse, l'état de la maladie et de la survie en juillet 1986 a été enregistré pour le plus grand nombre possible de patients. À cette date, 125 des 312 patients étaient décédés, dont 11 seulement n'étaient pas attribuables à la CBP. Huit patients avaient été perdus de vue et 19 avaient subi une transplantation hépatique.
 
 
+## Importation des données et suppression des variables avec valeurs manquantes :
 
+```{r}
+library(randomForestSRC)
+library(survival)
+data(pbc, package = "randomForestSRC")
+x = pbc[1:312, ]
+p = dim(x)[2]
+E = c()
+
+for (i in 1:p)
+{
+  if (sum(is.na(x[, i])) > 0)
+  {
+    E = c(E, i)
+  }
+}
+x = x[, -E] # On a enlevé les variables avec valeurs manquantes (NA)
+
+cat("Dimension de la base de données : \n")
+dim(x)
+```
+## Estimation de Kaplan Meier simple : 
+
+```{r}
+library(ggfortify)
+s = survfit(Surv(days, status) ~ 1, data = x, type = "kaplan-meier")
+autoplot(s)
+
+```
+
+## Test de comparaison de survie selon le traitement : 
+
+```{r}
+survdiff(Surv(days,status)~treatment,data=x)
+s = survfit(Surv(days,status)~treatment,data = x,type = "kaplan-meier")
+autoplot(s)
+s
+```
+Commentaire analyse (mistral ai) : 
+
+Traitement 1 :
+- 158 sujets ont été suivis.
+- 65 événements ont été observés.
+- Le temps médian de survie est de 3282 jours.
+- L'intervalle de confiance à 95% pour le temps médian de survie est [2583, NA], ce qui signifie que la limite supérieure n'est pas définie, probablement parce que plus de la moitié des sujets n'ont pas encore eu d'événement.
+
+
+Commentaire (Prof) : 
+
+La p-value est élevée, la différence entre les lois de survie selon le traitemnet n'est donc pas significative. Au seuil de 5% la fonction de survie ne change pas selon le type d'évenement. 
+
+## Modélisation de Kaplan-Meier en distinguant le sexe des individus : 
+
+
+```{r}
+survdiff(Surv(days,status)~sex,data=x)
+library(ggfortify)
+s = survfit(Surv(days,status)~sex,data = x,type = "kaplan-meier")
+autoplot(s)
+s
+```
+
+Commentaire (prof) :  
+
+La p-value est de 0.04, la différence entre les lois de survie selon le sexe est donc significative au niveau de rejet 0.05.
+
+
+## Expliquer la durée de survie par des variables (modèle de Cox) : 
+
+Remarque : 
+ ties=c("efron","breslow","exact") permet de choisir la méthode à adopter en cas d'événements simultanés
+Par défaut, c'est ici l'approximation d'Efron qui est utilisée.
+
+### Calibration du modèle : 
+
+```{r}
+
+cox0= coxph(formula=Surv(days,status)~.,data=x)
+summary(cox0)
+
+```
+
+
+Commentaire :  
+
+Dans le summary, les hypothèses $H_0 : \beta_j=0$ sont testées.  Les quantités $Pr(>|z|)$ sont $P(|U|> z)$, avec $U$ de loi normale $ N(0,1)$.
+La quantité $se(coef)$ est  l'écart-type de l'estimateur de $\beta_j$.
+
+### Probabilité de survie au moins 400 jours pour individu 1 : 
+
+```{r}
+tcox0 = survfit(cox0, newdata = x[1, ])
+i = which(tcox0$time == 400)
+tcox0$surv[i]
+```
+
+## Simplification du modèle avec 7 variables explicatives :
+
+### Calibration modèle : 
+
+On peut calibrer des modèles plus simples en retirant les variables les moins significatives.
+
+```{r}
+cox1 = coxph(
+  formula = Surv(days, status) ~ age + edema + bili + albumin + 
+    sgot + prothrombin + stage,
+  data = x
+)
+summary(cox1)
+```
+
+#### Graphique fonction de survie : 
+
+Nous pouvons tracer le graphe de la fonction de survie (Kaplan Meier ou Aalen, c'est Aalen par défaut).
+Les covariables sont fixées à leur valeur moyenne.
+
+```{r}
+#summary(survfit(cox1)) # Affichage des probabilités de survie
+plot(
+  survfit(cox1),
+  ylim = c(.1, 1),
+  xlab = 'Mois',
+  ylab = 'Proba survie',
+  main = 'Fonction de survie de Kaplan-Meier',
+  col = palette_couleur[1:3], 
+  lwd = 2
+)
+legend(
+  "bottomleft",
+  legend = c("Cox" , "lower" , "upper"),
+  lwd = 2,
+  col = palette_couleur[1:3], 
+)
+
+```
+
+
+#### Fonction de hasard : 
+
+```{r results='hide'}
+# Nous pouvons tracer la fonction de hasard cumulée 
+# (estimateur de Breslow).
+
+plot(basehaz(cox1), main = 'fonction de hasard de baseline', type = 'l')
+```
+
+#### Fonction de survie des individus observés : 
+
+```{r results='hide'}
+#plot(survfit(cox1,newdata=x))
+
+```
+
+### Vérification de l'hypothèse de proportionnalité du modèle :
+
+```{r}
+res=cox.zph(cox1)
+res
+#par(mfrow=c(3,3))
+#plot(res)
+```
+
+Interprétation : 
+
+- Les résidus de la variables bili ne sont pas indépendants du temps.
+- Il faut relancer le modèle en stratifiant sur la variable bili.
+
+
+### Probabilité de survie 400 jours premier individus de la base : 
+
+```{r}
+# Ou la fonction de survie pour des individus ayant les var 
+# explicatives identiques à l'individu 1 par exemple.
+#plot(survfit(cox1,newdata=x[1,]))
+tcox1=survfit(cox1,newdata=x[1,])
+i=which(tcox1$time==400)
+#i
+tcox1$surv[i]
+```
+## Modélisation Forêt aléatoire de survie : 
+
+### Calibration du modèle 
+
+```{r}
+library(randomForestSRC)
+v.obj <- rfsrc(Surv(days,status)~., data = x, 
+                   ntree = 100)
+
+## plot tree number 3
+plot(get.tree(v.obj, 3))
+```
+
+
+### Récupération du C-index : 
+
+```{r}
+get.cindex(time=x$days,censoring=x$status,predicted=v.obj$predicted.oob)
+```
+Interprétation du C-index :
+
+- Le C-index est de 0.16 ainsi le modèle de forêt aléatoire prédit très mal la mortalité. 
+
+#### Graphique de la fonction de survie : 
+
+```{r}
+#Le graphe de la fonction de survie pour les 10 premiers individus :
+
+matplot(v.obj$time.interest,  t(v.obj$survival.oob[1:10, ]),
+    xlab = "Time", ylab = "Survival", type = "l", lty = 1)
+```
+
+### Comparaison des modèles Cox et Forêt aléatoire pour l'individu 1 : 
+
+Comparaison des fonctions de survie entre une forêt aléatoire de survie et le modèle de Cox, pour l'individu 1:
+
+```{r}
+plot(
+  v.obj$time.interest,
+  t(v.obj$survival.oob[1,]),
+  xlab = "Temps",
+  ylab = "Probabilté de survie",
+  main = "Comparaison des modèles de survie",
+  type = "l",
+  lty = 1,
+  col = palette_couleur[1],
+  lwd = 2
+)
+lines(tcox1$time, tcox1$surv, col = palette_couleur[2], lwd = 2)
+lines(tcox0$time, tcox0$surv, col = palette_couleur[3], lwd = 2)
+legend(
+  "topright",
+  legend = c("Random Forest", "Cox 7 var", "Cox All var"),
+  fill = palette_couleur[1:3]
+)
+
+# Prédiction de la mortalité au 400e jour pour l'individu 1 : 
+i=which(v.obj$time.interest==400)
+i
+v.obj$survival.oob[1,i ]
+```
+
+### Etude approfondie du modèle de forêt aléatoire :
+
+
+La fonction plot.survival permet d'avoir une synthèse graphique de résultats :  
+
+```{r}
+plot.survival(v.obj, subset = 1)
+```
+
+#### Performances du modèle RSF :
+
+Commentaire et explication : 
+
+- Le modèle de forêt aléatoire de survie est plus performant que le modèle de Cox simple (7 variables explicatives) et le modèle de Cox complet (toutes les variables explicatives).
+
+
+```{r}
+## obtain Brier score using KM and RSF censoring distribution estimators
+bs.km <- get.brier.survival(v.obj, cens.model = "km")$brier.score
+bs.rsf <- get.brier.survival(v.obj, cens.model = "rfsrc")$brier.score
+
+## plot the brier score : Evolution de l'erreur de prédiction
+plot(bs.km, type = "s", col = 2)
+lines(bs.rsf, type ="s", col = 4)
+legend("topleft", legend = c("cens.model = Kaplan Meier", 
+                             "cens.model = Random forest"), fill = c(2,4))
+
+```
+
+### Prise en compte de l'importance des variables : 
+
+Importance des variables (VIMP) :
+
+Plusieurs méthodes sont possibles pour l'importance d'une variable $x$ : 
+
+- importance = "permute" : calcul d'importance par permutation aléatoire des valeurs de $x$ observées sur les exemples OOB.
+
+- importance = "random" : calcul d'importance par choix aléatoire gauche/droite lorsqu'une coupure se fait avec la variable $x$.
+
+- importance = "anti" : calcul d'importance en choisissant le choix opposé à celui proposé.
+
+```{r results='hide'}
+imp1 = subsample(v.obj, importance = "anti")
+plot(imp1)
+```
+
+
+```{r results='hide'}
+imp2 = subsample(v.obj, importance = "permute")
+plot(imp2)
+```
+
+```{r results='hide'}
+imp3 = subsample(v.obj, importance = "random")
+plot(imp3)
+```
+
+
+#### Estimation sur les variables ayant le plus d'importance : 
+
+```{r}
+library(randomForestSRC)
+v.obj <- rfsrc(
+  Surv(days, status) ~ age + edema + bili + albumin +
+    sgot + prothrombin + stage,
+  data = x,
+  ntree = 100
+)
+
+## plot tree number 3
+plot(get.tree(v.obj, 3))
+
+get.cindex(
+  time = x$days,
+  censoring = x$status,
+  predicted = v.obj$predicted.oob
+)
+```
+
+#### Affichage grahique de la fonction de survie sur le modèle simplifié : 
+
+```{r}
+plot(
+  v.obj$time.interest,
+  t(v.obj$survival.oob[1,]),
+  xlab = "Mois",
+  ylab = "Probabilté de survie",
+  type = "l",
+  main = "Comparaison des modèles de survie",
+  lty = 1,
+  col = palette_couleur[1],
+  lwd = 2
+)
+lines(tcox1$time, tcox1$surv, col = palette_couleur[2], lwd = 2)
+legend("topright",
+       legend = c("RF simplifié", "Cox 7 var"),
+       fill = palette_couleur[1:2], lwd = 1)
+
+
+# Probabilité de survie au 400e jour pour l'individu 1 :
+i=which(v.obj$time.interest==400)
+#i
+v.obj$survival.oob[1,i ]
+```
 
 
 # Autres exercices : 
@@ -1219,6 +1579,7 @@ persp(
 )
 
 ```
+
 ### Modélisation de Lee-Carter : 
 
 ```{r}
