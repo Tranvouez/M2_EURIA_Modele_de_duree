@@ -1872,11 +1872,9 @@ La fonction R du modèle de Lee-Carter calcule le logarithme de la mortalité :
 
 On utilise alors la relation ci-dessous pour faire le lien entre l'estimation de Lee-Carter et le modèle de Poisson :
 
-\[
-logit(q_{x,t}) = ln(\frac{q_{x,t}}{1-q_{x,t}}) \approx ln(\mu_{x,t}) \\
+$logit(q_{x,t}) = ln(\frac{q_{x,t}}{1-q_{x,t}}) \approx ln(\mu_{x,t})$
 
-logit(q_{x,t}) = \alpha_x + \beta_x k_t + \epsilon_{x,t} \]
-
+$logit(q_{x,t}) = \alpha_x + \beta_x k_t + \epsilon_{x,t}$
 
 
 ```{r}
@@ -1893,7 +1891,6 @@ for (i  in 1:55)
 
 
 #### Modélisation de Lee-Carter classique :
-
 
 ```{r}
 # Comparaison avec Lee Carter classique
