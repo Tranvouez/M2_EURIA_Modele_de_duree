@@ -1,3 +1,0 @@
-"0","plot(ages, log(q), type = 'l', main = ""Logarithme des taux bruts de mortalité"", "
-"0","     col = palette_couleur[1], lwd = 3)"
-"0",""

@@ -12,6 +12,9 @@ output:
   - \usepackage{unicode-math}
 always_allow_html: true
 html_document: default
+editor_options: 
+  markdown: 
+    wrap: sentence
 ---
 
 ```{r setup, include = FALSE, warning = FALSE, message = FALSE}
@@ -31,12 +34,11 @@ palette_couleur = c("#36648B", "#F4A460", "#9AFF9A", "#FFD700", "#838B8B","#EED5
 
 ```
 
+# Les méthodes semi-paramétriques
 
-# Les méthodes semi-paramétriques 
+## Le modèle de Cox
 
-## Le modèle de Cox 
-
-### Lecture des données traitement de la base : 
+### Lecture des données traitement de la base :
 
 ```{r results='hide'}
 library(tidyverse)
@@ -48,22 +50,20 @@ Re1 = Re[, -5]
 
 ```
 
-
 ### Etude la durée de survie selon la valeur d'une variable. (test de log-Rank)
 
-On regarde si les fonctions de survies des individus discriminés selon les modalités d'une variable, sont significativement similaires. 
+On regarde si les fonctions de survies des individus discriminés selon les modalités d'une variable, sont significativement similaires.
 
-On effectue pour ça le test du log-rank à l'aide de la fonction Surv du package survival. 
+On effectue pour ça le test du log-rank à l'aide de la fonction Surv du package survival.
 
-\[
+$$
 \left\{
 \begin{array}{l}
 H0 : \text{les fonctions de survie sont les mêmes,  p-value $\geq$ 0.05} \\
 H1 : \text{les fonctions de survie sont différentes} \\
 \end{array}
 \right.
-\]
-
+$$
 
 ```{r}
 library(survival)
@@ -75,9 +75,8 @@ survdiff(Surv(week, arrest) ~ fin, data = Re1)
 
 ```
 
-
-
 ### Modélisation de Kaplan Meier :
+
 ```{r}
 # Modélisation de kaplan meier, distinction sur la variable financement 
 s = survfit(Surv(week, arrest) ~ fin, data = Re1)
@@ -86,28 +85,27 @@ library(ggplot2)
 autoplot(s) 
 ```
 
-### Ajustement d'un modèle de Cox : 
+### Ajustement d'un modèle de Cox :
 
 ```{r}
 cox1 = coxph(formula = Surv(week, arrest) ~ fin + age + wexp + mar + 
                paro + prio, data = Re1)
 summary(cox1)
 ```
-Explication du test : 
 
-\[
+Explication du test :
+
+$$
 \left\{
 \begin{array}{l}
 H0 : \text{ $\beta_j$ = 0,  Pr(>|z|), prob(|U|> z), où U ~ N(0,1)} \\
 H1 : \text{$beta_j \neq 0$, p-value $\leq$ 0.05} \\
 \end{array}
 \right.
-\]
-Le se(coef) correspond au sqrt(var(beta)). 
-On en déduit que les variables significatives sont l'âge et le prio. 
+$$ Le se(coef) correspond au sqrt(var(beta)).
+On en déduit que les variables significatives sont l'âge et le prio.
 
-
-### Graphique de la fonction de survie : 
+### Graphique de la fonction de survie :
 
 Dans le cadre des fonction de Kaplan Meier, Aalen par défaut les covariables sont fixées à la valeur moyenne.
 
@@ -135,13 +133,14 @@ legend(
 
 ```
 
-### Fonction de hasard cumulée avec l'estimateur de Breslow : 
+### Fonction de hasard cumulée avec l'estimateur de Breslow :
 
 Interprétation Intuitive:
 
-Taux Instantané: La fonction de hasard représente le taux instantané de survenue de l'événement à un moment donné.   
-Par exemple, si h(t)=0.05 à t=10 semaines, cela signifie que le taux de survenance de évènement à 10 semaines est de 5% par unité de temps.  
-Conditionnelle à la Survie: La fonction de hasard est conditionnelle à la survie jusqu'à ce moment. Elle ne prend en compte que les individus qui n'ont pas encore subi l'événement.
+Taux Instantané: La fonction de hasard représente le taux instantané de survenue de l'événement à un moment donné.\
+Par exemple, si h(t)=0.05 à t=10 semaines, cela signifie que le taux de survenance de évènement à 10 semaines est de 5% par unité de temps.\
+Conditionnelle à la Survie: La fonction de hasard est conditionnelle à la survie jusqu'à ce moment.
+Elle ne prend en compte que les individus qui n'ont pas encore subi l'événement.
 
 ```{r}
 plot(
@@ -155,8 +154,7 @@ plot(
 )
 ```
 
-
-### Fonction survie pour l'individu ayant les caractéristiques du premier individu : 
+### Fonction survie pour l'individu ayant les caractéristiques du premier individu :
 
 ```{r}
 # plot(survfit(cox1, newdata = Re1)) # fonction de survie pour tous les individus
@@ -178,8 +176,7 @@ legend("bottomleft",
 
 ### Etude de l'effet d'une covariable (les autres étant fixées) :
 
-Exemple : effet de la var "financement" (0 ou 1)
-On fixe les autres à leur valeur moyenne.
+Exemple : effet de la var "financement" (0 ou 1) On fixe les autres à leur valeur moyenne.
 
 ```{r}
 ReFin = data.frame(
@@ -210,29 +207,28 @@ legend(
 )
 ```
 
-### Sélection de variable une à une : 
+### Sélection de variable une à une :
 
-Remarque : on peut faire de la sélection de variables  en enlevant de façon itérative celles expliquant le moins (p-value la plus forte) exemple :
- 
+Remarque : on peut faire de la sélection de variables en enlevant de façon itérative celles expliquant le moins (p-value la plus forte) exemple :
+
 ```{r}
 cox2= coxph(formula=Surv(week,arrest)~fin+age+wexp+mar+prio,data=Re1)
 summary(cox2)
 ```
 
-
-Test hypothèse de Hasard Proportionnel : (proportionnalité des risques)
-\[
+Test hypothèse de Hasard Proportionnel : (proportionnalité des risques) $$
 \left\{
 \begin{array}{l}
 H0 : \text{les résidus sont indépendants du temps} \\
 H1 : \text{les résidus dépendent du temps} \\
 \end{array}
 \right.
-\]
+$$
 
 Explication : Si H0 est rejetée, alors les résidus dépendent du temps
 
 ### Test de hasard proportionnel, les résidus de Schoenfeld
+
 ```{r}
 res = cox.zph(cox1)
 res
@@ -242,14 +238,13 @@ par(mfrow = c(2, 4))
 plot(res)
 ```
 
+# Les méthodes non-paramétriques
 
-# Les méthodes non-paramétriques  
+## La méthode de Kaplan meier :
 
-## La méthode de Kaplan meier : 
+### Génération de la base et importation des données
 
-### Génération de la base et importation des données 
-
-On créer une base de données avec des observations censurées. 
+On créer une base de données avec des observations censurées.
 
 ```{r}
 library(survival)
@@ -261,8 +256,8 @@ donnF = Surv(tempsGMP, finGMP)
 head(donnF)
 
 ```
-### Ajustement d'un modèle de survie avec la méthode de Kaplan Meier  :
 
+### Ajustement d'un modèle de survie avec la méthode de Kaplan Meier :
 
 ```{r}
 survKM = survfit(donnF ~ 1,
@@ -285,7 +280,7 @@ IC_KM = round(c(survKM$lower[10], survKM$surv[10], survKM$upper[10]),4)
 
 ```
 
-## Le modèle de Fleming-Harrington : 
+## Le modèle de Fleming-Harrington :
 
 ### Modèle de Fleming-Harrington, intervalle méthode Tsiatis :
 
@@ -301,8 +296,7 @@ IC_FH = round(c(survFH$lower[10], survFH$surv[10], survFH$upper[10]),4)
 
 ```
 
-
-### Modèle de Fleming-Harrington, intervalle méthode delta : 
+### Modèle de Fleming-Harrington, intervalle méthode delta :
 
 ```{r}
 survFHdelta = survfit(
@@ -316,7 +310,7 @@ IC_FHdelta = round(c(survFHdelta$lower[10], survFHdelta$surv[10], survFHdelta$up
 
 ```
 
-### Comparaison des résultats sur l'estimation du 10e individu de la base : 
+### Comparaison des résultats sur l'estimation du 10e individu de la base :
 
 ```{r}
 #Comparaison des modèles pour le 10e individu de la base 
@@ -325,8 +319,7 @@ rownames(dt) = c("lower","pred","upper")
 dt
 ```
 
-
-### Représentation graphiques des trois modèles : 
+### Représentation graphiques des trois modèles :
 
 ```{r}
 # Graphiques des trois modèles : 
@@ -357,7 +350,7 @@ legend(
 )
 ```
 
-## Estimation par des lois usuelles : 
+## Estimation par des lois usuelles :
 
 ### Estimation de la loi de X par une loi de Weibull :
 
@@ -365,6 +358,7 @@ legend(
 survweib = survreg(donnF ~ 1, dist = "weibull")
 survweib
 ```
+
 ### Estimation de la loi de X par une loi exponentielle :
 
 ```{r}
@@ -376,11 +370,12 @@ lambda = exp(-survexp$coefficients)
 lambda
 
 ```
-# Examen 2018 : 
 
-## Exercice 2 : 
+# Examen 2018 :
 
-### Importation des données et traitement de la base : 
+## Exercice 2 :
+
+### Importation des données et traitement de la base :
 
 ```{r}
 library(StMoMo)
@@ -415,14 +410,13 @@ plot(
 
 ```
 
+### Calibration d'un modèle de Makeham-Gompertz :
 
-### Calibration d'un modèle de Makeham-Gompertz : 
-
-#### Utilisation du package fmsb : 
+#### Utilisation du package fmsb :
 
 Utilisation de la fonction fitGm pour calibrer le modèle $h(x) = C + A \times exp(\beta_x)$
 
-Avec la fonction fitGm on peut faire le lien avec l'autre paramétrage du type : 
+Avec la fonction fitGm on peut faire le lien avec l'autre paramétrage du type :
 
 $h(x) = \alpha + \beta \times \gamma^{x}$ où $x$ représente l'âge.
 
@@ -488,12 +482,11 @@ legend("topleft",
 
 ```
 
-
-Interprétation des résultats : 
+Interprétation des résultats :
 
 Le modèle de Gompertz - Makeham, avec h croissant, ne peut pas modéliser correctement la mortalité aux âges inférieurs à 20 ans.
 
-#### Utilisation du package MortalityLaws : 
+#### Utilisation du package MortalityLaws :
 
 ```{r}
 library(MortalityLaws)
@@ -538,16 +531,15 @@ legend("topleft",
 )
 ```
 
+### Modélisation de Lee Carter :
 
-### Modélisation de Lee Carter : 
-
-Rappels sur la modélisation de Lee Carter : 
+Rappels sur la modélisation de Lee Carter :
 
 $ln(\mu{(x,t)}) = \alpha_x + \beta_x \times k_t + \epsilon_{(x,t)}$
 
-Avec : \alpha_x = la valeur moyenne 
+Avec : \alpha\_x = la valeur moyenne
 
-\[
+$$
 \left\{
 \begin{array}{l}
 \alpha_x : \text{la valeur moyenne} \\
@@ -555,8 +547,7 @@ k_t : \text{correspond à une évolution générale dans le temps}
 \beta_x : \text{la sensibilité du taux instantané par rapport à une variation de $k_t$} \\
 \end{array}
 \right.
-\]
-
+$$
 
 ```{r}
 library(forecast)
@@ -570,7 +561,7 @@ Baseh = demogdata(
   type = "mortality",
   label = 'G.B.',
   name = 'Hommes',
-  lambda = 1)
+  lambda = 1) # 
 
 lch = lca(Baseh) # Lancement du modèle de Lee-Carter
 
@@ -588,9 +579,9 @@ plot(annees, kt)
 
 #### Méthode de Lee-Carter 1992 : Projection des Kt
 
-Rappel: les Kt représentent 
+Rappel: les Kt représentent
 
-Hypothèse : $k_t =  k_{t-1}+ d + e_t$
+Hypothèse : $k_t = k_{t-1}+ d + e_t$
 
 ```{r}
 
@@ -605,19 +596,22 @@ plot(forecast(ar, h = 20), main = "Projection des kt prédits, Arima")
 
 ```
 
+Interprétation (BA) :
 
-Interprétation (BA) : 
+-   $a_x$ donne une indication sur la valeur de la mortalité moyenne
 
-- $a_x$ donne une indication sur la valeur de la mortalité moyenne  
+-   $b_x$ la variation du taux instantané comporte trois phases.
+    Le taux est de moins en moins déterminant sur les années de 0 à 20 ans ainsi que sur l'intervalle 60 à 100 ans.
+    En revanche ce taux est croissant entre 20 à 60 ans.
+    Ce qui correspond souvent à la période durant laquelle l'Homme est le plus actif.
+    Le risque additionnel de décès à tendance à croître sur cette période.
+    Enfin la période de 0 à 10 est celle qui admet un coefficient de taux instantané le plus fort du fait notamment de la mortalité infantile.
 
-- $b_x$ la variation du taux instantané comporte trois phases. Le taux est de moins en moins déterminant sur les années de 0 à 20 ans ainsi que sur l'intervalle 60 à 100 ans. En revanche ce taux est croissant entre 20 à 60 ans. Ce qui correspond souvent à la période durant laquelle l'Homme est le plus actif. Le risque additionnel de décès à tendance à croître sur cette période. Enfin la période de 0 à 10 est celle qui admet un coefficient de taux instantané le plus fort du fait notamment de la mortalité infantile.   
+-   $k_t$ est décroissant sur toute la période, ce qui permet de conclure que la mortalité tend à décroître sur la période observée et ainsi maintient le constat d'une diminution des causes de mortalité annexes.
 
-- $k_t$ est décroissant sur toute la période, ce qui permet de conclure que la mortalité tend à décroître sur la période observée et ainsi maintient le constat d'une diminution des causes de mortalité annexes. 
+#### Modèle de Lee Carter sans ajustement des Kt :
 
-
-#### Modèle de Lee Carter sans ajustement des Kt : 
-
-Dans cette partie on fait l'hypothèse que les $k_t$ sont constants dans le temps. 
+Dans cette partie on fait l'hypothèse que les $k_t$ sont constants dans le temps.
 
 ```{r}
 ## L.C. sans ajustement des k_t
@@ -638,7 +632,7 @@ legend(
 )
 ```
 
-#### Comparaison des modèles : 
+#### Comparaison des modèles :
 
 ```{r}
 
@@ -697,14 +691,13 @@ legend("bottomright",
 
 ```
 
-### Calcul des rentes : 
+### Calcul des rentes :
 
-Nous souhaitons calculer la prime pure d'une rente viagère à partir de 2012 pour l'âge de 65 ans. 
+Nous souhaitons calculer la prime pure d'une rente viagère à partir de 2012 pour l'âge de 65 ans.
 
 $a_x(t)= \sum_{k\ge 0} { \prod_{j=0}^k exp(-\mu_{x+j}(t+j)) *1/(1+r)^(k+1)}$
 
-
-#### Calcul à l'aide du modèle de Lee-Carter : 
+#### Calcul à l'aide du modèle de Lee-Carter :
 
 ```{r}
 
@@ -744,7 +737,8 @@ cat("Avec la table jusque 120 ans : ")
 a120 # 13.174
 
 ```
-#### Calcul à l'aide du modèle de Gompertz-Makeham : 
+
+#### Calcul à l'aide du modèle de Gompertz-Makeham :
 
 ```{r}
 
@@ -773,11 +767,11 @@ a
 # 12.77
 ```
 
-# Examen 2019 : 
+# Examen 2019 :
 
-## Exercice 1 : 
+## Exercice 1 :
 
-### Importation des données : 
+### Importation des données :
 
 ```{r}
 Re = read.table(file = 'DATA/emploi.txt', header = TRUE)
@@ -786,22 +780,20 @@ str(Re)
 library(survival)
 ```
 
-
 ### Estimateur de Kaplan-Meier : test de comparaison
 
-Rappel sur les tests : 
+Rappel sur les tests :
 
-- Le test du log-rank et test de Gehan : 
+-   Le test du log-rank et test de Gehan :
 
-\[
+$$
 \left\{
 \begin{array}{l}
 H0 : \text{les fonctions de survie sont les mêmes,  p-value $\geq$ 0.05} \\
 H1 : \text{les fonctions de survie sont différentes} \\
 \end{array}
 \right.
-\]
-
+$$
 
 ```{r}
 
@@ -815,34 +807,30 @@ s
 
 ```
 
+### Estimation par un modèle de Cox :
 
-### Estimation par un modèle de Cox : 
-
-#### Modélisation : 
+#### Modélisation :
 
 Remarque :
 
 ties=c("efron","breslow","exact") permet de choisir la méthode à adopter en cas d'événements simultanés par défaut, c'est ici l'approximation d'Efron qui est utilisée.
 
-Ecriture du modèle de Cox : 
+Ecriture du modèle de Cox :
 
-\[
+$$
 h(t) = h_0(t) \exp(\beta_1 \text{pnoj} + \beta_2 \text{edu} + \beta_3 \text{sex} + \beta_4 \text{pres} + \beta_5 \text{lfx})
-\]
+$$
 
-où :
-- \( h(t) \) est la fonction de hasard à l'instant \( t \).
-- \( h_0(t) \) est la fonction de hasard de base à l'instant \( t \).
-- \( \beta_1, \beta_2, \beta_3, \beta_4, \beta_5 \) sont les coefficients des covariables.
-- \( \text{pnoj}, \text{edu}, \text{sex}, \text{pres}, \text{lfx} \) sont les covariables incluses dans le modèle.
+où : - $h(t)$ est la fonction de hasard à l'instant $t$.
+- $h_0(t)$ est la fonction de hasard de base à l'instant $t$.
+- $\beta_1, \beta_2, \beta_3, \beta_4, \beta_5$ sont les coefficients des covariables.
+- $\text{pnoj}, \text{edu}, \text{sex}, \text{pres}, \text{lfx}$ sont les covariables incluses dans le modèle.
 
-Analyse des résultats : 
+Analyse des résultats :
 
-- On teste si les coefficients sont significativement différents de 0 au seuil de 0.05% 
+-   On teste si les coefficients sont significativement différents de 0 au seuil de 0.05%
 
-se(coef)  <=> sqrt(var(beta))
-Test H0 : beta_j=0   ==>  Pr(>|z|) : prob(|U|> z), où U N(0,1)
-
+se(coef) \<=\> sqrt(var(beta)) Test H0 : beta_j=0 ==\> Pr(\>\|z\|) : prob(\|U\|\> z), où U N(0,1)
 
 ```{r}
 cox1 = coxph(formula = Surv(tfp, des) ~ pnoj + edu + sex + pres + lfx,
@@ -850,9 +838,7 @@ cox1 = coxph(formula = Surv(tfp, des) ~ pnoj + edu + sex + pres + lfx,
 summary(cox1)
 ```
 
-
-
-#### Représentation Graphique : 
+#### Représentation Graphique :
 
 ```{r}
 # (Kaplan Meier ou Aalen, Aalen par défaut)
@@ -888,24 +874,22 @@ plot(basehaz(cox1),
 #plot(survfit(cox1, newdata = Re[1,]))
 ```
 
-#### Hasard proportionnel pour chaque variable : 
+#### Hasard proportionnel pour chaque variable :
 
-##### Les résidus Schoenfeld : 
+##### Les résidus Schoenfeld :
 
-Test hypothèse de Hasard Proportionnel le test des résidus de Schoenfeld : (proportionnalité des risques)
-\[
+Test hypothèse de Hasard Proportionnel le test des résidus de Schoenfeld : (proportionnalité des risques) $$
 \left\{
 \begin{array}{l}
 H0 : \text{les résidus sont indépendants du temps} \\
 H1 : \text{les résidus dépendent du temps} \\
 \end{array}
 \right.
-\]
+$$
 
 Explication : Si H0 est rejetée, alors les résidus dépendent du temps
 
-Graphiquement on cherche à ne pas avoir de tendance pour attester que les résidus ne dépendent pas du temps. 
-
+Graphiquement on cherche à ne pas avoir de tendance pour attester que les résidus ne dépendent pas du temps.
 
 ```{r}
 
@@ -926,17 +910,18 @@ length(temps)
 
 ```
 
-
-Interprétation : Les résidus de Schoenfeld nous montrent que la proportionnalité n'est pas vérifiée dans le cadre de la variable sex. Nous pouvons réaliser un modèle stratifié sur la variable sex pour contourner le problème.  
+Interprétation : Les résidus de Schoenfeld nous montrent que la proportionnalité n'est pas vérifiée dans le cadre de la variable sex.
+Nous pouvons réaliser un modèle stratifié sur la variable sex pour contourner le problème.
 
 ##### L'estimation linéaire : (p35 cours)
 
 On cherche à tester la nullité du coefficient $\beta_1$ dans l'équation suivante :
 
-\[ r_{ik}^* = \beta_0 + \beta_1 \times t_i + \epsilon_i \]
+$$ r_{ik}^* = \beta_0 + \beta_1 \times t_i + \epsilon_i $$
 
 où :
 
+```{=tex}
 \begin{itemize}
     \item $r_{ik}^*$ représente les résidus de Schoenfeld standardisé pour la $k$-ème covariable au temps $t_i$.
     \item $\beta_0$ est l'ordonnée à l'origine, représentant la valeur moyenne des résidus de Schoenfeld lorsque $t_i = 0$.
@@ -944,7 +929,7 @@ où :
     \item $t_i$ est le temps d'événement pour le $i$-ème individu.
     \item $\epsilon_i$ est le terme d'erreur, représentant la variabilité non expliquée par le modèle.
 \end{itemize}
-
+```
 ```{r}
 ### test corrélations par méthode de régression linéaire (ne marche pas ?)
 # temps = Re[Re$des == 1, ]$tfp  # on ne prend pas les censures
@@ -965,10 +950,10 @@ où :
 # summary(reglfx)
 ```
 
+### Modélisation stratifiée sur la variable Sex :
 
-### Modélisation stratifiée sur la variable Sex : 
-
-On scinde la population en deux groupe puis on applique un modèle par groupe. On rappelle que Sex 1 = Homme et Sex 2 = Femme. 
+On scinde la population en deux groupe puis on applique un modèle par groupe.
+On rappelle que Sex 1 = Homme et Sex 2 = Femme.
 
 ```{r}
 coxStrafin =  coxph(formula = Surv(tfp, des) ~ strata(sex) + pnoj + edu +
@@ -993,14 +978,14 @@ legend(100,
        lwd = 2)
 
 ```
-Interprétation modèle : 
 
-Exemple sur l'indicateur de prestige de l'emploi courant. 
+Interprétation modèle :
 
-Une augmentation d'une unité de prestige est associée à une diminution de 2.3% du risque de fin d'emploi (p-valeur = 1.14e-05, très significatif). 
+Exemple sur l'indicateur de prestige de l'emploi courant.
 
+Une augmentation d'une unité de prestige est associée à une diminution de 2.3% du risque de fin d'emploi (p-valeur = 1.14e-05, très significatif).
 
-#### La fonction de hasard par sexe : 
+#### La fonction de hasard par sexe :
 
 ```{r}
 # la fonction de hasard cumulée (estimateur de Breslow)
@@ -1024,7 +1009,7 @@ legend(
 )
 ```
 
-#### Comparaison entre les deux modèles : 
+#### Comparaison entre les deux modèles :
 
 ##### Résultats de projection sur les mois 100 et 200 :
 
@@ -1084,7 +1069,7 @@ round(tab, 3)
 
 ```
 
-##### Représentation graphique : 
+##### Représentation graphique :
 
 ```{r}
 plot(
@@ -1137,7 +1122,6 @@ legend(
 
 ```
 
-
 ### Ajout de la variable Age au début de l'emploi :
 
 ```{r}
@@ -1160,10 +1144,10 @@ summary(coxStrafin1)
 
 ```
 
-Interprétation des résultats : 
+Interprétation des résultats :
 
-- On s’aperçoit que l'ajout de la variable age au début de l'emploi n'est pas significative.
-- De plus la variable Expérience sur le marché de l'emploi n'est pas significative.
+-   On s’aperçoit que l'ajout de la variable age au début de l'emploi n'est pas significative.
+-   De plus la variable Expérience sur le marché de l'emploi n'est pas significative.
 
 ```{r}
 coxStrafin2 =  coxph(formula = Surv(tfp, des) ~ strata(sex) + pnoj + edu +
@@ -1172,9 +1156,10 @@ coxStrafin2 =  coxph(formula = Surv(tfp, des) ~ strata(sex) + pnoj + edu +
 summary(coxStrafin2)
 
 ```
-Interprétation : 
 
-- Toutes les variables sont significatives au seuil de 5%.
+Interprétation :
+
+-   Toutes les variables sont significatives au seuil de 5%.
 
 ##### Etude de la proportionnalité des risques :
 
@@ -1185,16 +1170,25 @@ par(mfrow = c(2, 2))
 plot(res)
 ```
 
-Interprétation : 
+Interprétation :
 
-- Les résidus de Schoenfeld ne dépendent pas du temps pour les variables explicatives. 
+-   Les résidus de Schoenfeld ne dépendent pas du temps pour les variables explicatives.
 
-# Examen 2023-2024 : 
+# Examen 2023-2024 :
 
-Examen de Janvier 2024. Données PBC (Primary Biliary Cirrhosis). L’objectif est d’étudier le temps de survie pour les patients atteints de cirrhose biliaire primitive.
-La cirrhose biliaire primitive est une maladie chronique du foie rare mais mortelle, de cause inconnue, avec une prévalence d'environ 50 cas par million d'habitants. L'événement pathologique primaire semble être la destruction des canaux biliaires interlobulaires, qui peut être médiée par des mécanismes immunologiques.
-Entre janvier 1974 et mai 1984, la Mayo Clinic a mené un essai randomisé en double aveugle sur la cirrhose biliaire primitive du foie (CBP), comparant le médicament D-pénicillamine (DPCA) à un placebo. Quatre cent vingt-quatre patients répondant aux critères d'éligibilité ont été vus à la clinique pendant la période d'inscription à l'essai. Le médecin traitant et le patient ont accepté de participer à l'essai randomisé dans 312 des 424 cas. La date de la randomisation et un grand nombre de paramètres cliniques, biochimiques, sérologiques et histologiques ont été enregistrés pour chacun des 312 patients de l'essai clinique. Les données de l'essai ont été analysées en 1986 pour être présentées dans la littérature clinique. Pour cette analyse, l'état de la maladie et de la survie en juillet 1986 a été enregistré pour le plus grand nombre possible de patients. À cette date, 125 des 312 patients étaient décédés, dont 11 seulement n'étaient pas attribuables à la CBP. Huit patients avaient été perdus de vue et 19 avaient subi une transplantation hépatique.
-
+Examen de Janvier 2024.
+Données PBC (Primary Biliary Cirrhosis).
+L’objectif est d’étudier le temps de survie pour les patients atteints de cirrhose biliaire primitive.
+La cirrhose biliaire primitive est une maladie chronique du foie rare mais mortelle, de cause inconnue, avec une prévalence d'environ 50 cas par million d'habitants.
+L'événement pathologique primaire semble être la destruction des canaux biliaires interlobulaires, qui peut être médiée par des mécanismes immunologiques.
+Entre janvier 1974 et mai 1984, la Mayo Clinic a mené un essai randomisé en double aveugle sur la cirrhose biliaire primitive du foie (CBP), comparant le médicament D-pénicillamine (DPCA) à un placebo.
+Quatre cent vingt-quatre patients répondant aux critères d'éligibilité ont été vus à la clinique pendant la période d'inscription à l'essai.
+Le médecin traitant et le patient ont accepté de participer à l'essai randomisé dans 312 des 424 cas.
+La date de la randomisation et un grand nombre de paramètres cliniques, biochimiques, sérologiques et histologiques ont été enregistrés pour chacun des 312 patients de l'essai clinique.
+Les données de l'essai ont été analysées en 1986 pour être présentées dans la littérature clinique.
+Pour cette analyse, l'état de la maladie et de la survie en juillet 1986 a été enregistré pour le plus grand nombre possible de patients.
+À cette date, 125 des 312 patients étaient décédés, dont 11 seulement n'étaient pas attribuables à la CBP.
+Huit patients avaient été perdus de vue et 19 avaient subi une transplantation hépatique.
 
 ## Importation des données et suppression des variables avec valeurs manquantes :
 
@@ -1218,7 +1212,8 @@ x = x[, -E] # On a enlevé les variables avec valeurs manquantes (NA)
 cat("Dimension de la base de données : \n")
 dim(x)
 ```
-## Estimation de Kaplan Meier simple : 
+
+## Estimation de Kaplan Meier simple :
 
 ```{r}
 library(ggfortify)
@@ -1227,7 +1222,7 @@ autoplot(s)
 
 ```
 
-## Test de comparaison de survie selon le traitement : 
+## Test de comparaison de survie selon le traitement :
 
 ```{r}
 survdiff(Surv(days,status)~treatment,data=x)
@@ -1235,21 +1230,20 @@ s = survfit(Surv(days,status)~treatment,data = x,type = "kaplan-meier")
 autoplot(s)
 s
 ```
-Commentaire analyse (mistral ai) : 
 
-Traitement 1 :
-- 158 sujets ont été suivis.
+Commentaire analyse (mistral ai) :
+
+Traitement 1 : - 158 sujets ont été suivis.
 - 65 événements ont été observés.
 - Le temps médian de survie est de 3282 jours.
 - L'intervalle de confiance à 95% pour le temps médian de survie est [2583, NA], ce qui signifie que la limite supérieure n'est pas définie, probablement parce que plus de la moitié des sujets n'ont pas encore eu d'événement.
 
+Commentaire (Prof) :
 
-Commentaire (Prof) : 
+La p-value est élevée, la différence entre les lois de survie selon le traitemnet n'est donc pas significative.
+Au seuil de 5% la fonction de survie ne change pas selon le type d'évenement.
 
-La p-value est élevée, la différence entre les lois de survie selon le traitemnet n'est donc pas significative. Au seuil de 5% la fonction de survie ne change pas selon le type d'évenement. 
-
-## Modélisation de Kaplan-Meier en distinguant le sexe des individus : 
-
+## Modélisation de Kaplan-Meier en distinguant le sexe des individus :
 
 ```{r}
 survdiff(Surv(days,status)~sex,data=x)
@@ -1259,18 +1253,17 @@ autoplot(s)
 s
 ```
 
-Commentaire (prof) :  
+Commentaire (prof) :
 
 La p-value est de 0.04, la différence entre les lois de survie selon le sexe est donc significative au niveau de rejet 0.05.
 
+## Expliquer la durée de survie par des variables (modèle de Cox) :
 
-## Expliquer la durée de survie par des variables (modèle de Cox) : 
+Remarque :
 
-Remarque : 
- ties=c("efron","breslow","exact") permet de choisir la méthode à adopter en cas d'événements simultanés
-Par défaut, c'est ici l'approximation d'Efron qui est utilisée.
+ties=c("efron","breslow","exact") permet de choisir la méthode à adopter en cas d'événements simultanés Par défaut, c'est ici l'approximation d'Efron qui est utilisée.
 
-### Calibration du modèle : 
+### Calibration du modèle :
 
 ```{r}
 
@@ -1279,13 +1272,13 @@ summary(cox0)
 
 ```
 
+Commentaire :
 
-Commentaire :  
+Dans le summary, les hypothèses $H_0 : \beta_j=0$ sont testées.
+Les quantités $Pr(>|z|)$ sont $P(|U|> z)$, avec $U$ de loi normale \$ N(0,1)\$.
+La quantité $se(coef)$ est l'écart-type de l'estimateur de $\beta_j$.
 
-Dans le summary, les hypothèses $H_0 : \beta_j=0$ sont testées.  Les quantités $Pr(>|z|)$ sont $P(|U|> z)$, avec $U$ de loi normale $ N(0,1)$.
-La quantité $se(coef)$ est  l'écart-type de l'estimateur de $\beta_j$.
-
-### Probabilité de survie au moins 400 jours pour individu 1 : 
+### Probabilité de survie au moins 400 jours pour individu 1 :
 
 ```{r}
 tcox0 = survfit(cox0, newdata = x[1, ])
@@ -1295,7 +1288,7 @@ tcox0$surv[i]
 
 ## Simplification du modèle avec 7 variables explicatives :
 
-### Calibration modèle : 
+### Calibration modèle :
 
 On peut calibrer des modèles plus simples en retirant les variables les moins significatives.
 
@@ -1308,7 +1301,7 @@ cox1 = coxph(
 summary(cox1)
 ```
 
-#### Graphique fonction de survie : 
+#### Graphique fonction de survie :
 
 Nous pouvons tracer le graphe de la fonction de survie (Kaplan Meier ou Aalen, c'est Aalen par défaut).
 Les covariables sont fixées à leur valeur moyenne.
@@ -1333,8 +1326,7 @@ legend(
 
 ```
 
-
-#### Fonction de hasard : 
+#### Fonction de hasard :
 
 ```{r results='hide'}
 # Nous pouvons tracer la fonction de hasard cumulée 
@@ -1343,7 +1335,7 @@ legend(
 plot(basehaz(cox1), main = 'fonction de hasard de baseline', type = 'l')
 ```
 
-#### Fonction de survie des individus observés : 
+#### Fonction de survie des individus observés :
 
 ```{r results='hide'}
 #plot(survfit(cox1,newdata=x))
@@ -1359,13 +1351,12 @@ res
 #plot(res)
 ```
 
-Interprétation : 
+Interprétation :
 
-- Les résidus de la variables bili ne sont pas indépendants du temps.
-- Il faut relancer le modèle en stratifiant sur la variable bili.
+-   Les résidus de la variables bili ne sont pas indépendants du temps.
+-   Il faut relancer le modèle en stratifiant sur la variable bili.
 
-
-### Probabilité de survie 400 jours premier individus de la base : 
+### Probabilité de survie 400 jours premier individus de la base :
 
 ```{r}
 # Ou la fonction de survie pour des individus ayant les var 
@@ -1376,9 +1367,10 @@ i=which(tcox1$time==400)
 #i
 tcox1$surv[i]
 ```
-## Modélisation Forêt aléatoire de survie : 
 
-### Calibration du modèle 
+## Modélisation Forêt aléatoire de survie :
+
+### Calibration du modèle
 
 ```{r}
 library(randomForestSRC)
@@ -1389,17 +1381,17 @@ v.obj <- rfsrc(Surv(days,status)~., data = x,
 plot(get.tree(v.obj, 3))
 ```
 
-
-### Récupération du C-index : 
+### Récupération du C-index :
 
 ```{r}
 get.cindex(time=x$days,censoring=x$status,predicted=v.obj$predicted.oob)
 ```
+
 Interprétation du C-index :
 
-- Le C-index est de 0.16 ainsi le modèle de forêt aléatoire prédit très mal la mortalité. 
+-   Le C-index est de 0.16 ainsi le modèle de forêt aléatoire prédit très mal la mortalité.
 
-#### Graphique de la fonction de survie : 
+#### Graphique de la fonction de survie :
 
 ```{r}
 #Le graphe de la fonction de survie pour les 10 premiers individus :
@@ -1408,7 +1400,7 @@ matplot(v.obj$time.interest,  t(v.obj$survival.oob[1:10, ]),
     xlab = "Time", ylab = "Survival", type = "l", lty = 1)
 ```
 
-### Comparaison des modèles Cox et Forêt aléatoire pour l'individu 1 : 
+### Comparaison des modèles Cox et Forêt aléatoire pour l'individu 1 :
 
 Comparaison des fonctions de survie entre une forêt aléatoire de survie et le modèle de Cox, pour l'individu 1:
 
@@ -1440,8 +1432,7 @@ v.obj$survival.oob[1,i ]
 
 ### Etude approfondie du modèle de forêt aléatoire :
 
-
-La fonction plot.survival permet d'avoir une synthèse graphique de résultats :  
+La fonction plot.survival permet d'avoir une synthèse graphique de résultats :
 
 ```{r}
 plot.survival(v.obj, subset = 1)
@@ -1449,10 +1440,9 @@ plot.survival(v.obj, subset = 1)
 
 #### Performances du modèle RSF :
 
-Commentaire et explication : 
+Commentaire et explication :
 
-- Le modèle de forêt aléatoire de survie est plus performant que le modèle de Cox simple (7 variables explicatives) et le modèle de Cox complet (toutes les variables explicatives).
-
+-   Le modèle de forêt aléatoire de survie est plus performant que le modèle de Cox simple (7 variables explicatives) et le modèle de Cox complet (toutes les variables explicatives).
 
 ```{r}
 ## obtain Brier score using KM and RSF censoring distribution estimators
@@ -1467,23 +1457,22 @@ legend("topleft", legend = c("cens.model = Kaplan Meier",
 
 ```
 
-### Prise en compte de l'importance des variables : 
+### Prise en compte de l'importance des variables :
 
 Importance des variables (VIMP) :
 
-Plusieurs méthodes sont possibles pour l'importance d'une variable $x$ : 
+Plusieurs méthodes sont possibles pour l'importance d'une variable $x$ :
 
-- importance = "permute" : calcul d'importance par permutation aléatoire des valeurs de $x$ observées sur les exemples OOB.
+-   importance = "permute" : calcul d'importance par permutation aléatoire des valeurs de $x$ observées sur les exemples OOB.
 
-- importance = "random" : calcul d'importance par choix aléatoire gauche/droite lorsqu'une coupure se fait avec la variable $x$.
+-   importance = "random" : calcul d'importance par choix aléatoire gauche/droite lorsqu'une coupure se fait avec la variable $x$.
 
-- importance = "anti" : calcul d'importance en choisissant le choix opposé à celui proposé.
+-   importance = "anti" : calcul d'importance en choisissant le choix opposé à celui proposé.
 
 ```{r results='hide'}
 imp1 = subsample(v.obj, importance = "anti")
 plot(imp1)
 ```
-
 
 ```{r results='hide'}
 imp2 = subsample(v.obj, importance = "permute")
@@ -1495,8 +1484,7 @@ imp3 = subsample(v.obj, importance = "random")
 plot(imp3)
 ```
 
-
-#### Estimation sur les variables ayant le plus d'importance : 
+#### Estimation sur les variables ayant le plus d'importance :
 
 ```{r}
 library(randomForestSRC)
@@ -1517,7 +1505,7 @@ get.cindex(
 )
 ```
 
-#### Affichage grahique de la fonction de survie sur le modèle simplifié : 
+#### Affichage grahique de la fonction de survie sur le modèle simplifié :
 
 ```{r}
 plot(
@@ -1543,12 +1531,11 @@ i=which(v.obj$time.interest==400)
 v.obj$survival.oob[1,i ]
 ```
 
+# Autres exercices :
 
-# Autres exercices : 
+## Exercice sur la modélisation de Lee-Carter
 
-## Exercice sur la modélisation de Lee-Carter 
-
-### Importation des données : 
+### Importation des données :
 
 Importation des données de mortalité pour la France de 1816 à 2021.
 
@@ -1580,7 +1567,7 @@ persp(
 
 ```
 
-### Modélisation de Lee-Carter : 
+### Modélisation de Lee-Carter :
 
 ```{r}
 library(forecast)
@@ -1661,21 +1648,20 @@ plot(
 
 ```
 
-### Projection des k_t méthode de Lee & Carter (1992) : 
+### Projection des k_t méthode de Lee & Carter (1992) :
 
 On fait l'hypothèse que les $k_t$ sont déterminés par la relation suivante :
 
-\[
+$$
 k_t = k_{t-1} + d + \epsilon_t
-\]
+$$
 
 avec :
 
-- $k_t$ : les valeurs de $k$ à l'instant $t$.
-- $k_{t-1}$ : les valeurs de $k$ à l'instant $t-1$.
-- $d$ : une constante.
-- $epsilon_t$ : un bruit blanc.
-
+-   $k_t$ : les valeurs de $k$ à l'instant $t$.
+-   $k_{t-1}$ : les valeurs de $k$ à l'instant $t-1$.
+-   $d$ : une constante.
+-   $epsilon_t$ : un bruit blanc.
 
 ```{r}
 plot(lch) # Affichage des résultats
@@ -1694,8 +1680,7 @@ lch_sans = lca(Baseh, adjust = "none")
 
 ```
 
-
-#### Comparaison avec et sans ajustement des $k_t$ : 
+#### Comparaison avec et sans ajustement des $k_t$ :
 
 ```{r}
 plot(
@@ -1719,6 +1704,363 @@ legend(
 
 ```
 
+## Exercice 2 : La modélisation de log-Poisson
+
+Human Mortality Database [HMD](http://www.mortality.org)
+
+### Importation des données :
+
+```{r}
+# Décès
+de = read.csv("DATA/DeathsFrance2024.csv", header = TRUE, sep = ";")
+# remarque : la classe d'âge "110" est en réalité "110 et plus".
+
+# Expositions
+ex = read.csv("DATA/ExposuresFrance2024.csv", header = TRUE, sep = ";")
+#str(ex)
+
+```
+
+### Modélisation log-Poisson :
+
+On peut calibrer ce modèle avec la fonction gnm (generalized nonlinear model).
+
+Le modèle de Lee-Carter suppose que les résidus sont homoscédastiques c'est à dire que l'aléa de nuisance $\epsilon_{x,t}$ est constant dans le temps et par âge.
+Le modèle de Log-Poisson permet de relacher cette hypothèse en considérant que la variance des taux de décès augmente pour les âges élevés.
+
+On va modéliser le nombre de décès $D_{x,t}$ par une loi de Poisson conditionnelle à l'exposition $L_{x,t}$ et à un terme multiplicatif $\mu_{x,t}$ qui dépend de l'âge et de l'année.
+Ainsi on obtient que $\mu_{x,t} = \exp(\alpha_x + \beta_x k_t)$, tel que $D_{x,t} \sim \mathcal{P}(\mu_{x,t} \times L_{x,t})$.
+
+On se rapproche d'un modèle de Lee-Carter pour qui la fonction de mortalité est donnée par $\mu_{x,t} = \exp(\alpha_x + \beta_x k_t)$ mais on considère une loi de Poisson pour les décès et non pas une loi normale centrée réduite.
+
+Afin d'utiliser la fonction gnm, utilisée pour les modélisations non-linéaire généralisées on doit adapter les données.
+
+$\mu_{x,t} = \exp(\alpha_x + \beta_x k_t) = \sum_{a = x_{\text{min}}}^{x_{\text{max}}} \alpha_{\alpha} \textbf{1}_{[\alpha]}(x) + \sum_{a = x_{\text{min}}}^{x_{\text{max}}} \sum_{b = t_{\text{min}}}^{t_{\text{max}}} \beta_{\alpha} k_{b} \textbf{1}_{[\alpha]}(x) \textbf{1}_{[b]}(t)$
+
+Pour obtenir cette équation dans R on applique des facteurs aux variables afin de récréer les indicatrices dans la fonction gnn. 
+
+#### Modélisation et adaptation des donnéés : 
+
+```{r}
+library(gnm)
+
+# Sélection des données : 
+ind = which((de$Age > 44) & (de$Age < 100) &
+              (de$Year > 1949) & (de$Year < 2013))
+annee = 1950:2012
+nc = length(annee)
+age = 45:99
+nl = length(age)
+
+D = de$Male[ind]
+E = ex$Male[ind]
+x = as.factor(ex$Age[ind])
+t = as.factor(ex$Year[ind])
+
+regp <-
+  gnm(D ~ 0 + x + Mult(x, t),
+      offset = log(E),
+      family = poisson(link = "log"))
+
+nomvar = names(regp$coefficients)
+
+set.seed(123)
+#Simulation aléatoire de 10 variables explicatives pour visualiser :
+nomvar[sample(1:length(nomvar), 10)]
+
+# Explication de la fonction Mult(x,t) :
+# Elle permet de modéliser l'interaction entre l'âge et l'année.
+
+```
+
+#### Estimation des coefficients : 
+
+```{r}
+plot(
+  45:99,
+  regp$coefficients[1:55],
+  main = "coefficients alpha_x",
+  xlab =
+    "Ages",
+  type = 'l',
+  col = palette_couleur[1],
+  lwd = 2
+)
+
+plot(
+  45:99,
+  regp$coefficients[56:110],
+  main = "coefficients beta_x",
+  xlab = "Ages",
+  type = 'l',
+  col = palette_couleur[2],
+  lwd = 2
+)
+
+plot(
+  1950:2012,
+  regp$coefficients[111:173],
+  main = "coefficients k_t",
+  xlab = "Années",
+  type = 'l',
+  col = palette_couleur[3],
+  lwd = 2
+)
+
+```
+
+
+Le coefficient $\alpha_x$ est la valeur moyenne de la mortalité pour l'âge $x$.
+
+Le coefficient $\beta_x$ est la sensibilité de la mortalité à l'âge $x$.
+
+Le coefficient $k_t$ est l'effet temporel.
+
+
+#### Normalisation des coefficients :
+
+```{r}
+alpha = regp$coefficients[1:55]
+k = regp$coefficients[111:173]
+beta = regp$coefficients[56:110]
+
+# On "normalise" les paramètres comme pour Lee-Carter :
+sb = sum(beta)
+beta = beta / sb
+mk = mean(k)
+k = (k - mk) * sb
+alpha = alpha + beta * mk
+
+
+plot(
+  45:99,
+  alpha,
+  main = "coefficients alpha_x normalisé",
+  xlab =
+    "Ages",
+  type = 'l',
+  col = palette_couleur[1],
+  lwd = 2
+)
+
+plot(
+  45:99,
+  beta,
+  main = "coefficients beta_x normalisé",
+  xlab = "Ages",
+  type = 'l',
+  col = palette_couleur[2],
+  lwd = 2
+)
+
+plot(
+  1950:2012,
+  k,
+  main = "coefficients k_t normalisé",
+  xlab = "Années",
+  type = 'l',
+  col = palette_couleur[3],
+  lwd = 2
+)
+```
+
+
+### Comparaison avec Lee-Carter classique :
+
+La fonction R du modèle de Lee-Carter calcule le logarithme de la mortalité :
+\[ \mu_{x,t} = \log(q_{x,t}) \]
+
+On utilise alors la relation ci-dessous pour faire le lien entre l'estimation de Lee-Carter et le modèle de Poisson :
+
+\[
+logit(q_{x,t}) = ln(\frac{q_{x,t}}{1-q_{x,t}}) \approx ln(\mu_{x,t}) \\
+
+logit(q_{x,t}) = \alpha_x + \beta_x k_t + \epsilon_{x,t} \]
+
+
+
+```{r}
+# calcul des log(mu_{x,t})
+logmu = matrix(NA, nrow = 55, ncol = 63)
+for (i  in 1:55)
+{
+  for (j in 1:63)
+  {
+    logmu[i, j] = alpha[i] + beta[i] * k[j]
+  }
+}
+```
+
+
+#### Modélisation de Lee-Carter classique :
+
+
+```{r}
+# Comparaison avec Lee Carter classique
+library(demography)
+muh = matrix(de$Male[ind] / ex$Male[ind], nl, nc)
+poph = matrix(ex$Male[ind], nl, nc)
+
+Baseh = demogdata(
+  data = muh, # taux de mortalité
+  pop = poph, # population
+  ages = age, # âges
+  years = annee, # années
+  type = "mortality", # type de données
+  label = 'France', # label
+  name = 'Hommes', # genre 
+  lambda = 1 # paramètre de Box cox (Normalisation ???)
+)
+lch = lca(Baseh)
+plot(lch)
+```
+
+#### Comparaison des paramètres Log Poisson / Lee Carter :
+
+```{r}
+# Coefficients alpha_x : 
+plot(
+  45:99,
+  alpha,
+  main = "Comparaison des coefficients alpha_x",
+  xlab = "Ages",
+  type = 'l',
+  col = palette_couleur[1],
+  lwd = 2
+)
+lines(45:99, lch$ax, col = palette_couleur[2], lwd = 2)
+legend(
+  50,
+  -1,
+  legend = c("Log Poisson", "Lee Carter"),
+  col = c(palette_couleur[1], palette_couleur[2]),
+  lty = 1,
+  cex = 0.8, 
+  lwd = 2
+)
+
+# Coefficients beta_x :
+plot(
+  45:99,
+  beta,
+  main = "Comparaison des coefficients beta_x",
+  xlab = "Ages",
+  type = 'l',
+  col = palette_couleur[1],
+  lwd = 2
+)
+lines(45:99, lch$bx, col = palette_couleur[2], lwd = 2)
+legend(
+  50,
+  0.01,
+  legend = c("Log Poisson", "Lee Carter"),
+  col = c(palette_couleur[1], palette_couleur[2]),
+  lty = 1,
+  cex = 0.8, 
+  lwd = 2
+)
+
+# Coefficients k_t :
+plot(
+  1950:2012,
+  k,
+  main = "Comparaison des coefficients k_t",
+  xlab = "Années",
+  type = 'l',
+  col = palette_couleur[1],
+  lwd = 2
+)
+lines(1950:2012, lch$kt, col = palette_couleur[2], lwd = 2)
+legend(
+  1955,
+  -10,
+  legend = c("Log Poisson", "Lee Carter"),
+  col = c(palette_couleur[1], palette_couleur[2]),
+  lty = 1,
+  cex = 0.8,
+  lwd = 2
+)
+
+```
+
+#### Etude de l'erreur de prédiction des modèles :
+
+```{r}
+
+# Prédiction de Lee-Carter 
+predh=lch$fitted$y # c'est log(mu_{x,t}) qui est prédit
+
+# Comparaison Lee-Carter / données réelles
+rmseh=sqrt(sum((log(muh)-(predh))^2)/(nl-1)/nc)
+
+# Comparaison Log Poisson / données réelles
+rmseh1=sqrt(sum((logmu-(log(muh)))^2)/(nl-1)/nc)
+
+# Comparaison Log Poisson / Lee-Carter
+rmseh2=sqrt(sum((logmu-predh)^2)/(nl-1)/nc)
+
+# Tableau comparatif des erreurs : 
+dt = t(round(data.frame("Lee Carter vs reel" = rmseh,
+           "Log Poisson vs reel" =   rmseh1,
+           "Log Poisson vs  Lee Carter" = rmseh2),4))
+colnames(dt) = c("Erreur quadratique moyenne")
+dt
+
+```
+
+##### Comparaison graphique des prédictions :
+
+
+- On compare graphiquement $\mu_{x,t}$ prédit par le modèle de Lee-Carter et le modèle de Log-Poisson pour l'année 2012.
+
+
+```{r}
+plot(
+  45:99,
+  exp(logmu[, 63]),
+  main = "mu_{x,2012}",
+  type = 'l',
+  xlab = "Ages",
+  col = palette_couleur[1],
+  lwd = 2
+)
+lines(45:99, exp(predh[, 63]), col = palette_couleur[2], lwd = 2)
+legend(
+  50,
+  0.3,
+  legend = c("Log Poisson", "Lee Carter"),
+  col = c(palette_couleur[1], palette_couleur[2]),
+  lty = 1,
+  cex = 0.8,
+  lwd = 2
+)
+
+```
+
+- Comparaison des log(mu_{x,2012}) prédits par les deux modèles et les données observées :
+
+```{r}
+plot(
+  45:99,
+  logmu[, 63],
+  main = "log(mu_{x,2012})",
+  type = 'l',
+  xlab = "Ages",
+  col = palette_couleur[1],
+  lwd = 2
+)
+lines(45:99, predh[, 63], col = palette_couleur[2], lwd = 2)
+lines(45:99, log(muh[, 63]), col = palette_couleur[3], lwd = 2)
+legend(
+  50,
+  -1,
+  legend = c("Log Poisson", "Lee Carter", "obs."),
+  col = c(palette_couleur[1], palette_couleur[2], palette_couleur[3]),
+  lty = 1,
+  cex = 0.8,
+  lwd = 2
+)
+```
 
 
 

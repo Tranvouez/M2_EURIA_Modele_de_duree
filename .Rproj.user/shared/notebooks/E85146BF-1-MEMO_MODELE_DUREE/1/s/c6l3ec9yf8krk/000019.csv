@@ -1,4 +1,0 @@
-"0","#Comparaison des modèles pour le 10e individu de la base "
-"0","dt = data.frame(KM = IC_KM, FH = IC_FH, FHdelta = IC_FHdelta)"
-"0","rownames(dt) = c(""lower"",""pred"",""upper"")"
-"0","dt"

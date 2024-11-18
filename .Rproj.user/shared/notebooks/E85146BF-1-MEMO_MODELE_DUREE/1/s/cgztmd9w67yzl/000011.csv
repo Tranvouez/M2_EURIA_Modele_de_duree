@@ -1,5 +1,0 @@
-"0","# Graphe sur les fonctions de survie partie financement :  "
-"0","s = survfit(Surv(week, arrest) ~ fin, data = Re1)"
-"0","library(ggfortify)"
-"0","library(ggplot2)"
-"0","autoplot(s) "

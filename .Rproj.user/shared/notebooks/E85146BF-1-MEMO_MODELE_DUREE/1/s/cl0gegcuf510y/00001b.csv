@@ -1,7 +1,0 @@
-"0","## L.C. sans ajustement des k_t"
-"0","lch_sans = lca(Baseh, adjust = ""none"")"
-"0","plot(lch$year,"
-"0","     lch$kt,"
-"0","     col = palette_couleur[1],"
-"0","     type = 'l',"
-"0","     main = ""Effet de l'ajustement sur les k_t, Lee-Carter"")"
