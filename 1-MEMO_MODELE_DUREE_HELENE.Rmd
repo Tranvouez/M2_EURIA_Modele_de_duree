@@ -1,7 +1,7 @@
 ---
-html_document: default
+title: "Modèles de durée : TD et Examens"
 date: "`r Sys.Date()`"
-output:
+output: 
   pdf_document:
     toc: true
     number_sections: true
@@ -9,15 +9,11 @@ output:
     latex_engine: xelatex
   header-includes:
   - \usepackage{fontspec}
-  - "\\usepackage{unicode-math}"
-  html_document:
-    toc: true
-    toc_depth: '3'
-    df_print: paged
+  - \usepackage{unicode-math}
 always_allow_html: true
-title: 'Modèles de durée : TD et Examens '
-editor_options:
-  markdown:
+html_document: default
+editor_options: 
+  markdown: 
     wrap: sentence
 ---
 
@@ -414,7 +410,6 @@ plot(
 
 ```
 
-
 ### Calibration d'un modèle de Makeham-Gompertz :
 
 #### Utilisation du package fmsb :
@@ -424,7 +419,6 @@ Utilisation de la fonction fitGm pour calibrer le modèle $h(x) = C + A \times e
 Avec la fonction fitGm on peut faire le lien avec l'autre paramétrage du type :
 
 $h(x) = \alpha + \beta \times \gamma^{x}$ où $x$ représente l'âge.
-
 
 ```{r}
 library(fmsb)
@@ -771,7 +765,6 @@ for (k in 1:length(dmu))
 cat("GM LawMortality : ")
 a
 # 12.77
-
 ```
 
 # Examen 2019 :
@@ -844,7 +837,6 @@ cox1 = coxph(formula = Surv(tfp, des) ~ pnoj + edu + sex + pres + lfx,
              data = Re)
 summary(cox1)
 ```
-
 
 #### Représentation Graphique :
 
@@ -929,6 +921,7 @@ $$ r_{ik}^* = \beta_0 + \beta_1 \times t_i + \epsilon_i $$
 
 où :
 
+```{=tex}
 \begin{itemize}
     \item $r_{ik}^*$ représente les résidus de Schoenfeld standardisé pour la $k$-ème covariable au temps $t_i$.
     \item $\beta_0$ est l'ordonnée à l'origine, représentant la valeur moyenne des résidus de Schoenfeld lorsque $t_i = 0$.
@@ -936,8 +929,7 @@ où :
     \item $t_i$ est le temps d'événement pour le $i$-ème individu.
     \item $\epsilon_i$ est le terme d'erreur, représentant la variabilité non expliquée par le modèle.
 \end{itemize}
-
-
+```
 ```{r}
 ### test corrélations par méthode de régression linéaire (ne marche pas ?)
 # temps = Re[Re$des == 1, ]$tfp  # on ne prend pas les censures
@@ -966,6 +958,7 @@ On rappelle que Sex 1 = Homme et Sex 2 = Femme.
 ```{r}
 coxStrafin =  coxph(formula = Surv(tfp, des) ~ strata(sex) + pnoj + edu +
                       pres + lfx,data = Re)
+
 summary(coxStrafin)
 plot(
   survfit(coxStrafin),
@@ -1181,455 +1174,357 @@ Interprétation :
 
 -   Les résidus de Schoenfeld ne dépendent pas du temps pour les variables explicatives.
 
+## Exercice 2 :
 
-# Examen 2020-2021 : 
-
-## Exercice 1 : 
+Les fichiers ExposuresJapon1.csv et DeathsJapon1.csv contiennent le nombre d'individus exposés et décédés par l'âge au Japon durant la période 1947-2017, pour les âges de 0 à 110 ans, la classe d'âge 11O correspondant aux âges >= 110 (Human Mortality Database, 2019).
+Définissons le taux de mortalité $q(x,t)$ et le taux instantané de mortalité $\mu(x,t)$ à l'âge $x$ et l'année $t$. Nous ferons l'approximation $q(x,t) \approx \mu(x,t)$.
+Nous noterons $q_{\left(obs\right)}\left(x,t\right)$ les taux de mortalité observés calculés à partir des données pour les femmes. 
 
 ### Importation des données :
 
-
 ```{r}
-Ex = read.csv("DATA/ExposuresJapon1.csv", header = TRUE, sep = ";")
-DC = read.csv("DATA/DeathsJapon1.csv", header = TRUE, sep = ";")
-ex = Ex
-de = DC
-annee = unique(de$Year)
-nc = length(annee)
-age = unique(de$Age)
-nl = length(age)
+De=read.csv("DATA/DeathsJapon1.csv",header = TRUE, sep = ";")
+E=read.csv("DATA/ExposuresJapon1.csv",header = TRUE, sep = ";")
+
+# Calibration sur l'ensemble des données : 
+ex=E
+de=De
 ```
 
+De => la table avec les décès
 
-### Calibration de Lee-Carter sur la base Femme : 
+E => la table avec les expositions au risque 
+
+### Question 1 :
+
+A partir de ces données, calibrer un \textbf{modèle de Lee-Carter} de taux instantanés de mortalité $\mu(x,t)=exp(\alpha_x\ +\ \beta_x\ *k_t)$ pour les femmes, pour les années de 1947 à 2010 et les âges de 30 à 100 ans.
+
 
 ```{r}
-library(forecast)
+## Question 1
+ind=which((de$Age>29)&(de$Age<101)&(de$Year<2011))
+
+annee=1947:2010 ; nc=length(annee)
+age=30:100 ; nl=length(age)
+```
+
+Rappel : 
+
+Défition de :
+      $\hat{\mu}_(x,t)=D_(x,t)/L_(x,t)$  
+
+tel que : 
+
+-   D_(x,t) est le nombre de décès dans la classe d'âge x l'année t
+-   L_(x,t) est l'exposition au risque dans la classe d'âge x, l'année t (avec l'approximation L_(x,t)≈E_(x,t))
+
+
+```{r}
+# Mettre sous forme de matrice : Homme/Femme et toute population confondu
+  # Etape 1 : Calcul de mu
+muf=matrix( de$Female[ind]/ ex$Female[ind],nl,nc)
+muh=matrix( de$Male[ind]/ ex$Male[ind],nl,nc)
+mui=matrix( de$Total[ind]/ ex$Total[ind],nl,nc)
+
+  # Etape 2 : filtrer la population comme demandé dans l'énoncé
+popf=matrix(ex$Female[ind],nl,nc)
+poph=matrix(ex$Male[ind],nl,nc)
+popi=matrix(ex$Total[ind],nl,nc)
+
+#Library 
 library(demography)
 
-muf = matrix(de$Female / ex$Female, nl, nc)  # Données Femmes
-muh = matrix(de$Male / ex$Male, nl, nc)  # H
-
-popf = matrix(ex$Female, nl, nc)
-poph = matrix(ex$Male, nl, nc)
-
-Baseh = demogdata(
-  data = muh,
-  pop = poph,
-  ages = age,
-  years = annee,
-  type = "mortality",
-  label = 'France',
-  name = 'Hommes',
-  lambda = 1
-)
-
-Basef = demogdata(
-  data = muf,
-  pop = popf,
-  ages = age,
-  years = annee,
-  type = "mortality",
-  label = 'France',
-  name = 'Femmes',
-  lambda = 1
-)
-
-# Estimation sur la base femme : 
-lcf = lca(Basef)
-
+  # Structurer les données démographiques
+Baseh=demogdata(data=muh,pop=poph,ages=age,years=annee,type="mortality",label='France',name='Hommes',lambda=1)
+Basef=demogdata(data=muf,pop=popf,ages=age,years=annee,type="mortality",label='France',name='Femmes',lambda=1)
+Basei=demogdata(data=mui,pop=popi,ages=age,years=annee,type="mortality",label='France',name='Individus',lambda=1)
 ```
 
-#### Affichage des coefficients estimés : 
+Ajuster les données avec le modèle de Lee-Carter :
+
 
 ```{r}
-# Estimation de alpha_x
-plot(
-  lcf$age,
-  lcf$ax,
-  col = palette_couleur[1],
-  main = "Estimation de alpha_x",
-  type = 'l',
-  lwd =  2
-)
+# Appliqué le modèle
+lch=lca(Baseh)
+lcf=lca(Basef)
+lci=lca(Basei)
 
-# Estimation de beta_x
-plot(
-  lcf$age,
-  lcf$bx,
-  col = palette_couleur[2],
-  main = "Estimation de beta_x",
-  type = 'l',
-  lwd =  2
-)
+# Récupérer les taux de mortalité ajusté
+predh=lch$fitted$y
+predf=lcf$fitted$y  # c'est log(mu_{x,t})
+predi=lci$fitted$y
 
-# Estimation de kt : 
-kt = lcf$kt
-
-plot(
-  annee,
-  kt,
-  main = "Estimation de kt",
-  col = palette_couleur[3],
-  type = 'l',
-  lwd =  2
-)
-
+# Pas demander dans le partiel de calculer les RMSE-----
+  # RMSE sur période calibration (idem précédemment)
+rmsef=sqrt(sum((log(muf)-(predf))^2)/nl/nc)
+rmseh=sqrt(sum((log(muh)-(predh))^2)/nl/nc)
+rmsei=sqrt(sum((log(mui)-(predi))^2)/nl/nc)
+c(rmsef,rmseh,rmsei)
+# 0.1540581 0.1074303 0.1204481
 ```
 
-#### Projection des Kt : 
+On souhaite projeter le modèle de Lee-Carter pour les années 2011 à 2017 et les âges de 30 à 100 ans.
 
-On peut projeter avec la méthode forecast ou avec une modélisation autorégressive. 
 
 ```{r}
-plot(lcf)
-proj = forecast(lcf, h = 20)
-plot(proj, plot.type = "component", main = "Projection des Kt prédits")
-
+# Projections 2011-2017 :-----
+projh=forecast(lch,h=7)$rate$Hommes
+projf=forecast(lcf,h=7)$rate$Femmes
+proji=forecast(lci,h=7)$rate$Individus
 ```
 
-```{r}
-ar = auto.arima(kt)
-plot(forecast(ar, h = 20))
+- h = 7, le nombre d'année que l'on souhaite
+=> exp(alpha_x + beta_x*h), pour les années projeter
 
+```{r}
+# Methode à la main : 
+# on peut aussi les calculer à partir des kt projetés :
+# ## forecast(lcf,h=7)$kt.f$mean renvoie les delta kt d'une marche aléatoire avec drift 
+# il faut ajouter la valeur du dernier kt avant projection
+
+kp=forecast(lcf,h=7)$kt.f$mean[7]+lcf$kt[length(lcf$kt)]
+pf=exp(lcf$ax+lcf$bx*kp)
+```
+
+Tracer sur le même graphique les valeurs de :
+
+-   $\hat{\mu}(x,2017)$
+-   $q_{\left(obs\right)}\left(x,2017\right)$
+
+
+```{r}
+#lines(age,projf[,2],col='green')  # pour comparer avec données 
+
+# Refaire les filtres pour comparer avec les années après 2011 !!
+ind_aft_2011=which((de$Age>29)&(de$Age<101)&(de$Year>=2011))
+annee=2011:2017 ; nc=length(annee)
+
+muf_aft_2011 =matrix( de$Female[ind_aft_2011]/ ex$Female[ind_aft_2011],nl,nc)
+muh_aft_2011 =matrix( de$Male[ind_aft_2011]/ ex$Male[ind_aft_2011],nl,nc)
+mui_aft_2011 =matrix( de$Total[ind_aft_2011]/ ex$Total[ind_aft_2011],nl,nc)
+
+# q_obs(x,2017) et mu_hat(x,2017)
+plot(30:100, muf_aft_2011[,7], type = 'l', col = 'red', 
+     xlab = "Âge", ylab = "Taux de mortalité", 
+     main = "Taux de mortalité observés et prévus de 2011 à 2017")
+lines(30:100, projf[,7], col = 'blue')
+lines(30:100,pf,col='green')
+
+# Ajout de la légende
+legend("topleft",                  # Position de la légende
+       legend = c("q_obs : taux de mortalité observés", 
+                  "Taux instantanés de mortalité prédit",
+                  "Taux instantanés calculés à la main"), 
+       col = c("red", "blue","green"),      # Couleurs des courbes
+       lty = c(1, 1),               # Types de lignes (1 = pleine)
+       cex = 0.8)                   # Taille du texte
+```
+
+Commentaire :
+
+Les courbes des taux instantanés de mortalités calculé à la main ou via le modèle de Lee-Carter se superpose. Cela donne donc les mêmes résultats.
+
+
+Donner les valeurs de : 
+-   $\hat{\mu}(90,2017)$
+-   $q_{\left(obs\right)}\left(90,2017\right)$
+
+
+```{r}
+# comparaison q_obs(x=90,2017) et mu(x=90,2017)
+colnames(muf_aft_2011)=annee
+rownames(muf_aft_2011)=age
+which(rownames(muf_aft_2011)==90) # 61
+c(muf_aft_2011[61,7],projf[61,7])
+# 0.1009978 0.1002805
+
+pf[61]
+# 0.1002805 (on retrouve le même résultat par le second calcul)
+```
+
+### Question 2 : 
+
+Nous considérons maintenant le modèle \textbf{modèle log linéaire} :
+
+$$
+lg(x,t)=\alpha_x\ +\beta_x\ *t
+$$
+
+où $lg(x,t) = log(\frac{q(x,t)}{1-q(x,t)}$ est le logit de $q(x,t)$
+
+Déterminer explicitement les estimateurs par moindre carrés des paramètres $\alpha_x$ et $\beta_x$ minimisant : 
+
+$$
+\sum_{x=x_{\min}}^{x_{\max}} \sum_{t=t_{\min}}^{t_{\max}} \left( \lg_{\text{obs}}(x,t) - \lg(x,t) \right)^2,
+$$
+
+où \(\lg_{\text{obs}}(x,t)\) est la valeur observée et \(\lg(x,t) = \alpha_x + \beta_x \kappa_t\) est la valeur modélisée. Nous devons estimer les paramètres \(\alpha_x\) et \(\beta_x\) de sorte que l'erreur quadratique soit minimisée.
+
+=> Fait sur feuille
+
+- En utilisant les formules obtenus précédemment, calibrer le modèle log linéaire pour les femmes pour les années de 1947 à 2010 et les âges de 30 à 100 ans.
+
+```{r}
+# Filtrer la base de données
+ind=which((de$Age>29)&(de$Age<101)&(de$Year<2011))
+annee=1947:2010 ; nc=length(annee)
+age=30:100 ; nl=length(age)
 ```
 
 
-### Modélisation sans ajustement des KT : 
+```{r}
+# Calcul de mu_hat
+muf1=matrix(de$Female[ind]/ ex$Female[ind],nl,nc)
+```
+
+Rappel du modèle log-linéaire, en partant des logits des $q_{(x,t)}$ : 
+
+$$ 
+logit(q_(x,t))=ln(\frac{q_{(x,t)}}{1-q_{(x,t)}})\approx ln(\mu_{(x,t)})
+$$
+
+l'approximation étant assez faible, sauf pour les âges élevés.
+
+Estimation de $\alpha$ et $\beta$ : Utilisation de la méthode "Régression linéaire"
+
 
 ```{r}
-lcf_sans = lca(Basef, adjust = "none")
-plot(lcf$year,
-     lcf$kt,
-     col = palette_couleur[1],
-     type = 'l',
-     main = "Effet de l'ajustement sur les k_t, Lee-Carter", 
-     ylab = "kt", 
-     xlab = "Année", 
-     lwd = 2)
-lines(lcf_sans$year, lcf_sans$kt, col = palette_couleur[2], lwd = 2)
-legend('topright',
-  legend = c("Avec ajust.", "Sans ajust."),
-  col = palette_couleur[1:2],
-  lty = 1,
-  cex = 0.8, 
-  lwd = 2
-)
+# Ajuster sur le modèle log linéaire
+lg=log(muf1/(1-muf1))
 
+al=rep(0,nl)
+be=rep(0,nl)
+
+# Autre méthode, en utilisant la fonction lm pour chaque âge :
+# (régression linéaire)
+for (i in 1:nl) # Rappel : nl=length(age)
+{reg=lm(lg[i,]~annee)
+  be[i]=reg$coefficients[2]
+al[i]=reg$coefficients[1]}
+
+be
+al
 ```
 
 
-## Exercice 2 : 
-
-### Importation des données : 
-
 ```{r}
-Ex = read.csv("DATA/ExposuresJapon1.csv", header = TRUE, sep = ";")
-DC = read.csv("DATA/DeathsJapon1.csv", header = TRUE, sep = ";")
-ex = Ex
-de = DC
-annee = unique(de$Year)
-nc = length(annee)
-age = unique(de$Age)
-nl = length(age)
+# calcul des logit estimés sur 1947-2010
+lgpred=lg
+ for (i in 1:nl)
+ {for (j in 1:nc)
+ {lgpred[i,j]=al[i]+be[i]*annee[nc]}}
 ```
 
-### Question 1 : Calibration de Lee-Carter 
+Partons de la définition du *logit* :
 
-#### Modélisation sur la base Femme : 
+$$
+\text{logit}(q_{x,t}) = \ln\left(\frac{q_{x,t}}{1 - q_{x,t}}\right).
+$$
+
+1. Exponentions des deux côtés pour éliminer le logarithme :
+$$
+e^{\text{logit}(q_{x,t})} = \frac{q_{x,t}}{1 - q_{x,t}}.
+$$
+
+2. Multiplions chaque côté par \(1 - q_{x,t}\) :
+$$
+e^{\text{logit}(q_{x,t})} \cdot (1 - q_{x,t}) = q_{x,t}.
+$$
+
+3. Développons le produit à gauche :
+$$
+e^{\text{logit}(q_{x,t})} - e^{\text{logit}(q_{x,t})} \cdot q_{x,t} = q_{x,t}.
+$$
+
+4. Regroupons les termes en \(q_{x,t}\) :
+$$
+e^{\text{logit}(q_{x,t})} = q_{x,t} + e^{\text{logit}(q_{x,t})} \cdot q_{x,t}.
+$$
+
+5. Factorisons \(q_{x,t}\) à droite :
+$$
+e^{\text{logit}(q_{x,t})} = q_{x,t} \cdot \left(1 + e^{\text{logit}(q_{x,t})}\right).
+$$
+
+6. Isolons \(q_{x,t}\) :
+$$
+q_{x,t} = \frac{e^{\text{logit}(q_{x,t})}}{1 + e^{\text{logit}(q_{x,t})}}.
+$$
+
+Nous retrouvons la relation finale :
+$$
+q_{x,t} = \frac{\exp\left(\text{logit}(q_{x,t})\right)}{1 + \exp\left(\text{logit}(q_{x,t})\right)}.
+$$
+
 
 ```{r}
-library(forecast)
-library(demography)
-
-ind = which((de$Age > 29) & (de$Age < 101) & (de$Year < 2011))
-
-annee = 1947:2010
-nc = length(annee)
-age = 30:100
-nl = length(age)
-
-muf = matrix(de$Female[ind] / ex$Female[ind], nl, nc)
-muh = matrix(de$Male[ind] / ex$Male[ind], nl, nc)
-mui = matrix(de$Total[ind] / ex$Total[ind], nl, nc)
-
-popf = matrix(ex$Female[ind], nl, nc)
-poph = matrix(ex$Male[ind], nl, nc)
-popi = matrix(ex$Total[ind], nl, nc)
-
-Baseh = demogdata(
-  data = muh,
-  pop = poph,
-  ages = age,
-  years = annee,
-  type = "mortality",
-  label = 'France',
-  name = 'Hommes',
-  lambda = 1
-)
-Basef = demogdata(
-  data = muf,
-  pop = popf,
-  ages = age,
-  years = annee,
-  type = "mortality",
-  label = 'France',
-  name = 'Femmes',
-  lambda = 1
-)
-Basei = demogdata(
-  data = mui,
-  pop = popi,
-  ages = age,
-  years = annee,
-  type = "mortality",
-  label = 'France',
-  name = 'Individus',
-  lambda = 1
-)
-
-lch = lca(Baseh)
-lcf = lca(Basef)
-lci = lca(Basei)
-
-predh = lch$fitted$y
-predf = lcf$fitted$y  # c'est log(mu_{x,t})
-predi = lci$fitted$y
-
-# RMSE sur période calibration (idem précédemment)
-rmsef = sqrt(sum((log(muf) - (predf)) ^ 2) / nl / nc)
-rmseh = sqrt(sum((log(muh) - (predh)) ^ 2) / nl / nc)
-rmsei = sqrt(sum((log(mui) - (predi)) ^ 2) / nl / nc)
-c(rmsef, rmseh, rmsei)
-
-```
-
-#### Projection du modèle de Lee-Carter :
-
-On projette de 2011 à 2017 avec la méthode forecast.
-
-```{r}
-projh = forecast(lch, h = 7)$rate$Hommes
-projf = forecast(lcf, h = 7)$rate$Femmes
-proji = forecast(lci, h = 7)$rate$Individus
-
-# On peut le calculer d'une autre manière : 
-
-kp = forecast(lcf, h = 7)$kt.f$mean[7] + lcf$kt[length(lcf$kt)]
-pf = exp(lcf$ax + lcf$bx * kp)
-
-```
-
-Commentaire sur la deuxième méthode : 
-
-forecast(lcf,h=7)$kt.f$ mean renvoie les delta kt d'une marche aléatoire avec drift il faut ajouter la valeur du dernier kt avant projection. 
-
-
-
-#### Calcul du RMSE de prédiction : 
-
-```{r}
-ind = which((de$Age > 29) & (de$Age < 101) & (de$Year >= 2011))
-annee = 2011:2017
-nc = length(annee)
-
-muf = matrix(de$Female[ind] / ex$Female[ind], nl, nc)
-muh = matrix(de$Male[ind] / ex$Male[ind], nl, nc)
-mui = matrix(de$Total[ind] / ex$Total[ind], nl, nc)
-rmsef = sqrt(sum((log(muf) - log(projf)) ^ 2) / nl / nc)
-rmseh = sqrt(sum((log(muh) - log(projh)) ^ 2) / nl / nc)
-rmsei = sqrt(sum((log(mui) - log(proji)) ^ 2) / nl / nc)
-E1 = c(rmsef, rmseh, rmsei)
-E1
-```
-
-#### Représentation graphique des log(mu et obs, 2017)
-
-```{r}
-plot(
-  30:100,
-  muf[,7],
-  col = palette_couleur[1],
-  type = 'l',
-  main = "Projection de log(mu) et obs, 2017",
-  ylab = "log(mu)",
-  xlab = "Année",
-  lwd = 2
-)
-lines(30:100, projf[,7], col = palette_couleur[2], lwd = 2)
-legend(
-  "topleft",
-  legend = c("Obs", "LC Proj"),
-  col = palette_couleur[1:2],
-  lty = 1,
-  cex = 0.8,
-  lwd = 2
-)
-
-```
-
-#### Comparaison des q_obs(x=90,2017) et mu(x=90,2017) : 
-
-```{r}
-colnames(muf)= annee
-rownames(muf)= age
-idx = which(rownames(muf)==90) #Récupération de l'âge 90
-
-dt = data.frame(calcul_main_kt = pf[idx], 
-                estimé = projf[idx,7],
-                observé = muf[idx,7])
-dt
-```
-
-### Question 2 : Modélisation log-Linéaire 
-
-#### Calibration de modèle pour les femmes : 
-
-```{r}
-ind = which((de$Age > 29) & (de$Age < 101) & (de$Year < 2011))
-annee = 1947:2010
-nc = length(annee)
-age = 30:100
-nl = length(age)
-
-muf1 = matrix(de$Female[ind] / ex$Female[ind], nl, nc)
-
-al = rep(0, nl)
-be = rep(0, nl)
-
-lg = log(muf1/(1-muf1))
-
-# On utilise la fonction lm pour chaque âges : 
-for (i in 1:nl)
-{
-  reg = lm(lg[i, ] ~ annee)
-  be[i] = reg$coefficients[2]
-  al[i] = reg$coefficients[1]
-}
-
-# Autres méthodes possibles : 
-
-# al2 = rep(0, nl)
-# be2 = rep(0, nl)
-# mt = mean(annee)
-# mt2 = mean(annee ^ 2)
-# deno = mt2 - mt ^ 2
-# for (i in 1:nl)
-# {
-#   be2[i] = (sum(annee * lg[i, ]) / nc - mt / nc * sum(lg[i, ])) / deno
-#   al2[i] = 1 / nc * sum(lg[i, ]) - be2[i] * mt
-# }
-
-# Prédiction sur les années 1947- 2010 : 
-# lgpred = lg
-# for (i in 1:nl)
-# {
-#   for (j in 1:nc)
-#   {
-#     lgpred[i, j] = al[i] + be[i] * annee[nc]
-#   }
-# }
-# 
-# # on en déduit les q(x,t) =exp(lg(x,t))/(1+exp(lg(x,t)))
-# qpred = exp(lgpred) / (1 + exp(lgpred))
-# dim(qpred)
-
-```
-
-#### Prédiction sur les années 2011-2017 : 
-
-```{r}
-# Prédiction pour les femmes 2011-2017 : 
-npa = 7 
-
-lgpred = matrix(0, nl, npa)
-an = 2011:2017
-for (i in 1:nl)
-{
-  for (j in 1:npa)
-  {
-    lgpred[i, j] = al[i] + be[i] * an[j]
-  }
-}
-
-qpred = exp(lgpred) / (1 + exp(lgpred))
+# on en déduit les q(x,t) =exp(lg(x,t))/(1+exp(lg(x,t)))
+qpred=exp(lgpred)/(1+exp(lgpred))
 dim(qpred)
 ```
-#### Représentation graphiques de l'estimation et de l'observé  : 
 
 ```{r}
-plot(x = age, 
-     y = muf[,7],
-     main = "Projection de qx estm et qx obs, 2017",
-     xlab = "Age",
-     ylab = "log(mu)",
-     type = "l",
-     col = palette_couleur[1],
-     lwd = 2
-     )
-lines(x = age, 
-      y = qpred[,7],
-      col = palette_couleur[2],
-      lwd = 2
-      )
-legend("topleft",
-       legend = c("Obs", "Proj"),
-       col = palette_couleur[1:2],
-       lty = 1,
-       cex = 0.8,
-       lwd = 2
-       )
+## prediction 2011-2017
+npa=7 # nombre d'années prédites
+
+lgpred_aft2011=matrix(rep(0,nl*npa),nl,npa)
+an=2011:2017
+  for (i in 1:nl)
+{for (j in 1:npa)
+{lgpred_aft2011[i,j]=al[i]+be[i]*an[j]}}
+
+qpred_aft2011=exp(lgpred_aft2011)/(1+exp(lgpred_aft2011))
+dim(qpred_aft2011)
 ```
 
-#### Comparaison des coefficients : 
+Représentation sur un même graphique les taux de mortalité prédit toutes méthodes confondus : 
 
 ```{r}
-idx = which(rownames(muf) == 90)
-dt = round(data.frame(q_obs = muf[idx,7], 
-                LC_estim = projf[idx,7], 
-                Log_lin_estim = qpred[idx,7]),6)
-dt
+# q_obs(x,2017) et mu_hat(x,2017)
+plot(30:100, muf_aft_2011[,7], type = 'l', col = 'red', 
+     xlab = "Âge", ylab = "Taux de mortalité", 
+     main = "Taux de mortalité observés et prévus de 2011 à 2017")
+lines(30:100, projf[,7], col = 'blue')
+#lines(30:100,pf,col='green',add=T)
+lines(30:100,qpred_aft2011[,7],col='cyan')
+
+# Ajout de la légende
+legend("topleft",                  # Position de la légende
+       legend = c("q_obs : taux de mortalité observés", 
+                  "Taux instantanés de mortalité prédit : Lee Carter",
+                  #"Taux instantanés calculés à la main",
+                  "Taux instantanés prédit : log linaire"), 
+       col = c("red", "blue","cyan"),      # Couleurs des courbes
+       lty = c(1, 1),               # Types de lignes (1 = pleine)
+       cex = 0.8)                   # Taille du texte
 ```
 
-#### Calcul du RMSE projection log_lin : 
-
+Comparaison des $\hat{q}(90,2017)$ des différentes méthodes : Observé/ Lee-Carter/ Log linéaire
 
 ```{r}
-npa = 7 
-nl = length(age)
-E2 = sqrt(sum((log(muf)-log(qpred))^2)/nl/npa)
-E2
+# q_obs(90,2017), LC(90,2017), LogLin(90,2017)
+c(muf_aft_2011[61,7],projf[61,7],qpred_aft2011[61,7])
+#  0.10099780 0.10028046 0.09872513
+
+
+# Calcul du RMSE E2 : fonctionne pas
+# sqrt(sum((log(muf1)-log(qpred_aft2011))^2)/nl/npa)
+# 0.2612912
 ```
 
-### Comparaion du modèle question 1 et question 2 : 
+# Examen 2021 : 
 
-```{r}
-dt = round(data.frame(err_m1 = E1[1], 
-                err_mod2 = E2),5)
-rownames(dt) = c("Mod F")
-dt
-```
+Examen de Mars 2021. Données Veteran. L’objectif est d’étudier les relations entre le temps de survie pour les patients atteints du cancer des poumons et les variables explicatives trt, celltype , karno , age et prior.
 
-
-
-# Examen 2022-2023 : 
-
-Examen de Mars 2023. Données Veteran. L’objectif est d’étudier les relations entre le temps de survie pour les patients atteints du cancer des poumons et les variables explicatives trt, celltype , karno , age et prior.
-
-## Exercice 1 : 
-
-### Remplacer la variable prior par une variable binaire : 
+## Question 1:  Remplacer la variable prior par une variable binaire : 0=non, 1=oui.
 
 ```{r}
 library(survival)
-x = veteran 
-x$prior = 1*(x$prior == 10)
-levels(x$prior) = c("Non", "Oui")
-
+x=veteran
+x$prior= 1*(x$prior==10)
 ```
 
-
-### Test de comparaison des durées
+## Question 2:  Test de comparaison des durées de survie selon celltype
 
 ```{r}
 survdiff(Surv(time,status)~celltype,data=x)
@@ -1638,188 +1533,89 @@ s = survfit(Surv(time,status)~celltype,data = x,type = "kaplan-meier")
 autoplot(s)
 s
 ```
-
-
-# Examen 2022-2023 : 
-
-Examen de Mars 2023. Données Veteran. L’objectif est d’étudier les relations entre le temps de survie pour les patients atteints du cancer des poumons et les variables explicatives trt, celltype , karno , age et prior.
-
-## Exercice 1 : 
-
-### Remplacer la variable prior par une variable binaire : 
-
-```{r}
-library(survival)
-x = veteran 
-x$prior = 1*(x$prior == 10)
-levels(x$prior) = c("Non", "Oui")
-
-```
-
-
-### Test de comparaison des durées
-
-```{r}
-survdiff(Surv(time,status)~celltype,data=x)
-library(ggfortify)
-s = survfit(Surv(time,status)~celltype,data = x,type = "kaplan-meier")
-autoplot(s)
-s
-```
-
-
 La p-value est très petite, la différence entre les lois de survie selon celltype est donc significative.
 
-
-### Test de comparaison des durées de survie selon le traitement. 
-
+## Question 3:  Test de comparaison des durées de survie selon trt
 ```{r}
 survdiff(Surv(time,status)~trt,data=x)
+library(ggfortify)
 s = survfit(Surv(time,status)~trt,data = x,type = "kaplan-meier")
 autoplot(s)
 s
 ```
-
 La p-value est grande, la différence entre les lois de survie selon le traitement n'est donc pas significative.
 
-### Modélisation de Cox (variables explicatives): 
+## Question 4: Expliquer la duréee de survie en fonction des variables explicatives ci-dessus par un modèle de Cox.
 
-#### Sélection des variables explicatives : 
+Remarque : 
+ ties=c("efron","breslow","exact") permet de choisir la méthode à adopter en cas d'événements simultanés
+Par défaut, c'est ici l'approximation d'Efron qui est utilisée.
 
 ```{r}
-cox0 = coxph(
-  formula = Surv(time, status) ~ trt + celltype + karno + age + prior + 
-    diagtime,
-  data = x
-)
+cox0= coxph(formula=Surv(time,status)~trt+celltype+karno+age+prior+diagtime,data=x)
 summary(cox0)
 ```
-
 Dans le summary, les hypothèses $H_0 : \beta_j=0$ sont testées.  Les quantités $Pr(>|z|)$ sont $P(|U|> z)$, avec $U$ de loi normale ${\cal N}(0,1)$.
 La quantité $se(coef)$ est  l'écart-type de l'estimateur de $\beta_j$.
 
 On peut calibrer des modèles plus simples en retirant les variables les moins significatives.
 
 ```{r}
-cox1 = coxph(formula = Surv(time, status) ~ trt + celltype + karno + age +
-               prior,
-             data = x)
+cox1= coxph(formula=Surv(time,status)~trt+celltype+karno+age+prior,data=x)
 summary(cox1)
-
-# Sélection des variables explicatives : 
-
-cox2= coxph(formula=Surv(time,status)~trt+celltype+karno+age,data=x)
-#summary(cox2)
-
-cox3= coxph(formula=Surv(time,status)~trt+celltype+karno,data=x)
-#summary(cox3)
-
 ```
 
+
+```{r}
+cox2= coxph(formula=Surv(time,status)~trt+celltype+karno+age,data=x)
+summary(cox2)
+
+cox3= coxph(formula=Surv(time,status)~trt+celltype+karno,data=x)
+summary(cox3)
+```
 Nous pouvons tracer le graphe de la fonction de survie (Kaplan Meier ou Aalen, c'est Aalen par défaut).
 Les covariables sont fixées à leur valeur moyenne.
 
-
-
-#### Affichage graphique du modèle à sept variables : 
-
 ```{r}
 summary(survfit(cox1))
-plot(
-  survfit(cox1),
-  ylim = c(.1, 1),
-  xlab = 'mois',
-  ylab = 'Proba survie',
-  main = 'Fonction de survie', 
-  col = palette_couleur[1:3], 
-  lwd = 2
-)
-legend(
-  "topright",
-  legend = c('Proba survie', "lower", "upper"),
-  col = palette_couleur[1:3],
-  lty = 1,
-  cex = 0.8, 
-  lwd = 2
-)
-
+plot(survfit(cox1), ylim=c(.1,1), xlab='mois',ylab='Proba survie', main='Fonction de survie')
 ```
-
-#### Fonction de hasard du modèle à 7 paramètres : 
 
 Nous pouvons tracer la fonction de hasard cumulée (estimateur de Breslow).
 
 ```{r}
-plot(
-  basehaz(cox1),
-  main = 'fonction de hasard de baseline',
-  xlab = 'temps',
-  ylab = 'hazard',
-  type = 'l',
-  col = palette_couleur[1],
-  lwd = 2
-)
+plot(basehaz(cox1),main='fonction de hasard de baseline',type='l')
 ```
-
-
-#### Fonction de survie des individus observés : 
-
 Nous pouvons tracer les fonctions de survie pour des individus ayant les caractéristiques observées.
+
 ```{r}
-plot(survfit(cox1,newdata=veteran), 
-     main = 'Fonction de survie des individus observés',
-     xlab = 'Temps',
-     ylab = 'Proba survie',
-     lwd = 2)
+plot(survfit(cox1,newdata=veteran))
 ```
 Ou la fonction de survie pour des individus ayant les var explicatives identiques à l'individu 1 par exemple.
 
-#### Représentation graphique du premier individu : 
-
 ```{r}
-tcox1 = survfit(cox1, newdata = veteran[1, ])
-
-plot(tcox1, 
-     main = "Fonction de survie de l'individu 1", 
-     xlab = "Temps",
-     ylab = "Proba survie",
-     lwd = 2 , 
-     col = palette_couleur[1:3])
-legend("topright",
-  legend = c('Proba survie', "lower", "upper"),
-  col = palette_couleur[1:3],
-  lty = 1,
-  cex = 0.8, 
-  lwd = 2) 
+plot(survfit(cox1,newdata=veteran[1,]))
+tcox1=survfit(cox1,newdata=veteran[1,])
 ```
 
-#### Test de proportionnalité des résidus : 
- 
 On test l'hypothèse de Hasard Proportionnel, avec les résidus de Schoenfeld.
  
 ```{r}
-res = cox.zph(cox1)
+res=cox.zph(cox1)
 res
-par(mfrow = c(3, 3))
+par(mfrow=c(3,3))
 plot(res)
 ```
-
-Les variables celltype, karno et Global ne respectent pas l'hypothèse de proportionnalité. 
-
-
-## Exercice 2 :Forêt aléatoire de survie : package randomForestSRC
+## Partie : Forêt aléatoire de survie : package randomForestSRC
 
 Voir : 
+https://www.randomforestsrc.org/articles/getstarted.html
 
-[Référence1](https://www.randomforestsrc.org/articles/getstarted.html)
+https://www.randomforestsrc.org/articles/survival.html
 
-[Référence2](https://www.randomforestsrc.org/articles/survival.html)
+https://www.randomforestsrc.org/reference/rfsrc.html
 
-[Référence3](https://www.randomforestsrc.org/reference/rfsrc.html)
-
-[Référence4](https://www.randomforestsrc.org/cheatsheets.pdf)
-
-### Importation des données et modélisation :
+https://www.randomforestsrc.org/cheatsheets.pdf
 
 ```{r}
 library(randomForestSRC)
@@ -1831,124 +1627,77 @@ v.obj <- rfsrc(Surv(time, status) ~ ., data = veteran,
 plot(get.tree(v.obj, 3))
 ```
 
-#### Résultats de l'apprentissage :
+Résultats de l'apprentissage :
 
 ```{r}
 print(v.obj)
 ```
 
-##### Affichage du C-index du modèle : 
+Il est possible de récupérer directement le C-index :
 
 ```{r}
-get.cindex(
-  time = veteran$time,
-  censoring = veteran$status,
-  predicted = v.obj$predicted.oob
-)
+get.cindex(time=veteran$time,censoring=veteran$status,predicted=v.obj$predicted.oob)
 ```
-Explication du C-index : 
 
-Le C-index est une mesure de la qualité du modèle de forêt aléatoire, plus est élevé meilleur est le modèle. 
-
-#### Graphique de la fonction de survie pour les 10 premiers individus :
-
+Le graphe de la fonction de survie pour les 10 premiers individus :
 
 ```{r}
-matplot(
-  v.obj$time.interest,
-  t(v.obj$survival.oob[1:10,]),
-  xlab = "Time",
-  ylab = "Survival",
-  type = "l",
-  lty = 1
-)
+
+matplot(v.obj$time.interest,  t(v.obj$survival.oob[1:10, ]),
+    xlab = "Time", ylab = "Survival", type = "l", lty = 1)
 ```
 
+Comparaison des fonctions de survie entre une forêt aléatoire de survie et le modèle de Cox, pour l'individu 1:
 
+```{r}
+plot(v.obj$time.interest,  t(v.obj$survival.oob[1, ]),
+    xlab = "Time", ylab = "Survival", type = "l", lty = 1,col='blue')
+lines(tcox1$time,tcox1$surv, col='red')
 
-#### Synthèse des résultats : 
+```
 
-
-La fonction plot survival permet d'avoir une synthèse graphique de résultats :  
+La fonction plot.survival permet d'avoir une synthèse graphique de résultats :  
 
 ```{r}
 plot.survival(v.obj, subset = 1)
 ```
 
-
-#### Performances du modèle RSF :
+Performances du modèle RSF :
 
 ```{r}
 ## obtain Brier score using KM and RSF censoring distribution estimators
 bs.km <- get.brier.survival(v.obj, cens.model = "km")$brier.score
 bs.rsf <- get.brier.survival(v.obj, cens.model = "rfsrc")$brier.score
 
-# plot the brier score
- plot(bs.km, type = "s", col = 2)
- lines(bs.rsf, type ="s", col = 4)
- legend("topright", legend = c("cens.model = km", "cens.model = rfsrc"), fill = c(2,4))
+## plot the brier score
+plot(bs.km, type = "s", col = 2)
+lines(bs.rsf, type ="s", col = 4)
+legend("topright", legend = c("cens.model = km", "cens.model = rfsrc"), fill = c(2,4))
 ```
 
-
-### Importance des variables (VIMP) :
-
-(Problème sur les sorties pdf mais sortent en local)
+Importance des variables (VIMP) :
 
 Plusieurs méthodes sont possibles pour l'importance d'une variable $x$ : 
-  
-  - importance = "permute" : calcul d'importance par permutation aléatoire des valeurs de $x$ observées sur les exemples OOB.
 
-- importance = "random" : calcul d'importance par choix aléatoire gauche droite lorsqu'une coupure se fait avec la variable $x$.
+- importance = "permute" : calcul d'importance par permutation aléatoire des valeurs de $x$ observées sur les exemples OOB.
+
+- importance = "random" : calcul d'importance par choix aléatoire gauche/droite lorsqu'une coupure se fait avec la variable $x$.
 
 - importance = "anti" : calcul d'importance en choisissant le choix opposé à celui proposé.
-  
+
 ```{r}
-# imp1 = subsample(v.obj, importance = "anti")
+# Le code ci-dessous fonction sur R normal mais pas en Rmardown, pas trouvé pourquoi. Donc laissé en commentaire pour lancer le fichier
+
+# imp1=subsample(v.obj,importance = "anti")
 # plot(imp1)
-```
-
-  
-```{r}
-  # imp2 = subsample(v.obj, importance = "permute")
-  # plot(imp2)
-```
-  
-  
-```{r}
-  # imp3 = subsample(v.obj, importance = "random")
-  # plot(imp3)
-```
-  
-### Comparaison de modèle entre Cox et forêt aléatoire de survie : 
-  
-  Comparaison des fonctions de survie entre une forêt aléatoire de survie et le modèle de Cox, pour l'individu 1:
-
-```{r}
-plot(
-  v.obj$time.interest,
-  t(v.obj$survival.oob[1, ]),
-  xlab = "Time",
-  ylab = "Survival",
-  type = "l",
-  lty = 1,
-  col = palette_couleur[1],
-  lwd = 2
-)
-lines(tcox1$time, tcox1$surv, col = palette_couleur[2],
-      lwd = 2)
-legend(
-  "topright",
-  col = palette_couleur[1:2],
-  legend = c("Forêt aléatoire", "Cox"),
-  lty = 1,
-  cex = 0.8,
-  lwd = 2
-)
+# 
+# imp2=subsample(v.obj,importance="permute")
+# plot(imp2)
+# 
+# imp3=subsample(v.obj,importance="random")
+# plot(imp3)
 
 ```
-
-
-
 
 # Examen 2023-2024 :
 
@@ -2513,9 +2262,9 @@ Afin d'utiliser la fonction gnm, utilisée pour les modélisations non-linéaire
 
 $\mu_{x,t} = \exp(\alpha_x + \beta_x k_t) = \sum_{a = x_{\text{min}}}^{x_{\text{max}}} \alpha_{\alpha} \textbf{1}_{[\alpha]}(x) + \sum_{a = x_{\text{min}}}^{x_{\text{max}}} \sum_{b = t_{\text{min}}}^{t_{\text{max}}} \beta_{\alpha} k_{b} \textbf{1}_{[\alpha]}(x) \textbf{1}_{[b]}(t)$
 
-Pour obtenir cette équation dans R on applique des facteurs aux variables afin de récréer les indicatrices dans la fonction gnn.
+Pour obtenir cette équation dans R on applique des facteurs aux variables afin de récréer les indicatrices dans la fonction gnn. 
 
-#### Modélisation et adaptation des donnéés :
+#### Modélisation et adaptation des donnéés : 
 
 ```{r}
 library(gnm)
@@ -2549,7 +2298,7 @@ nomvar[sample(1:length(nomvar), 10)]
 
 ```
 
-#### Estimation des coefficients :
+#### Estimation des coefficients : 
 
 ```{r}
 plot(
@@ -2585,11 +2334,13 @@ plot(
 
 ```
 
+
 Le coefficient $\alpha_x$ est la valeur moyenne de la mortalité pour l'âge $x$.
 
 Le coefficient $\beta_x$ est la sensibilité de la mortalité à l'âge $x$.
 
 Le coefficient $k_t$ est l'effet temporel.
+
 
 #### Normalisation des coefficients :
 
@@ -2638,15 +2389,18 @@ plot(
 )
 ```
 
+
 ### Comparaison avec Lee-Carter classique :
 
-La fonction R du modèle de Lee-Carter calcule le logarithme de la mortalité : $$ \mu_{x,t} = \log(q_{x,t}) $$
+La fonction R du modèle de Lee-Carter calcule le logarithme de la mortalité :
+\[ \mu_{x,t} = \log(q_{x,t}) \]
 
 On utilise alors la relation ci-dessous pour faire le lien entre l'estimation de Lee-Carter et le modèle de Poisson :
 
 $logit(q_{x,t}) = ln(\frac{q_{x,t}}{1-q_{x,t}}) \approx ln(\mu_{x,t})$
 
 $logit(q_{x,t}) = \alpha_x + \beta_x k_t + \epsilon_{x,t}$
+
 
 ```{r}
 # calcul des log(mu_{x,t})
@@ -2659,6 +2413,7 @@ for (i  in 1:55)
   }
 }
 ```
+
 
 #### Modélisation de Lee-Carter classique :
 
@@ -2676,7 +2431,7 @@ Baseh = demogdata(
   type = "mortality", # type de données
   label = 'France', # label
   name = 'Hommes', # genre 
-  lambda = 1 
+  lambda = 1 # paramètre de Box cox (Normalisation ???)
 )
 lch = lca(Baseh)
 plot(lch)
@@ -2777,7 +2532,9 @@ dt
 
 ##### Comparaison graphique des prédictions :
 
--   On compare graphiquement $\mu_{x,t}$ prédit par le modèle de Lee-Carter et le modèle de Log-Poisson pour l'année 2012.
+
+- On compare graphiquement $\mu_{x,t}$ prédit par le modèle de Lee-Carter et le modèle de Log-Poisson pour l'année 2012.
+
 
 ```{r}
 plot(
@@ -2802,7 +2559,7 @@ legend(
 
 ```
 
--   Comparaison des log(mu\_{x,2012}) prédits par les deux modèles et les données observées :
+- Comparaison des log(mu_{x,2012}) prédits par les deux modèles et les données observées :
 
 ```{r}
 plot(
