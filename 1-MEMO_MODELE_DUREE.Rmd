@@ -32,9 +32,9 @@ knitr::opts_chunk$set(warning = FALSE,
                       fig.align = "center", 
                       out.width = "95%")
 
-
 # Définition d'une palette de couleurs : 
 palette_couleur = c("#36648B", "#F4A460", "#9AFF9A", "#FFD700", "#838B8B","#EED5B7", "#FF82AB")
+
 
 ```
 
@@ -242,6 +242,7 @@ par(mfrow = c(2, 4))
 plot(res)
 ```
 
+
 # Les méthodes non-paramétriques
 
 ## La méthode de Kaplan meier :
@@ -354,6 +355,7 @@ legend(
 )
 ```
 
+
 ## Estimation par des lois usuelles :
 
 ### Estimation de la loi de X par une loi de Weibull :
@@ -373,6 +375,10 @@ survexp = survreg(donnF ~ 1, dist = "exponential")
 lambda = exp(-survexp$coefficients)
 lambda
 
+```
+
+```{r echo=FALSE}
+rm(list = setdiff(ls(), "palette_couleur")) # Nettoyage de l'environnement
 ```
 
 # Examen 2018 :
@@ -772,6 +778,10 @@ cat("GM LawMortality : ")
 a
 # 12.77
 
+```
+
+```{r echo=FALSE}
+rm(list = setdiff(ls(), "palette_couleur")) # Nettoyage de l'environnement
 ```
 
 # Examen 2019 :
@@ -1181,6 +1191,9 @@ Interprétation :
 
 -   Les résidus de Schoenfeld ne dépendent pas du temps pour les variables explicatives.
 
+```{r echo=FALSE}
+rm(list = setdiff(ls(), "palette_couleur")) # Nettoyage de l'environnement
+```
 
 # Examen 2020-2021 : 
 
@@ -1611,34 +1624,9 @@ dt
 ```
 
 
-
-# Examen 2022-2023 : 
-
-Examen de Mars 2023. Données Veteran. L’objectif est d’étudier les relations entre le temps de survie pour les patients atteints du cancer des poumons et les variables explicatives trt, celltype , karno , age et prior.
-
-## Exercice 1 : 
-
-### Remplacer la variable prior par une variable binaire : 
-
-```{r}
-library(survival)
-x = veteran 
-x$prior = 1*(x$prior == 10)
-levels(x$prior) = c("Non", "Oui")
-
+```{r echo=FALSE}
+rm(list = setdiff(ls(), "palette_couleur")) # Nettoyage de l'environnement
 ```
-
-
-### Test de comparaison des durées
-
-```{r}
-survdiff(Surv(time,status)~celltype,data=x)
-library(ggfortify)
-s = survfit(Surv(time,status)~celltype,data = x,type = "kaplan-meier")
-autoplot(s)
-s
-```
-
 
 # Examen 2022-2023 : 
 
@@ -1701,24 +1689,21 @@ La quantité $se(coef)$ est  l'écart-type de l'estimateur de $\beta_j$.
 On peut calibrer des modèles plus simples en retirant les variables les moins significatives.
 
 ```{r}
-cox1 = coxph(formula = Surv(time, status) ~ trt + celltype + karno + age +
-               prior,
-             data = x)
+cox1 = coxph(formula = Surv(time, status) ~ trt + celltype + karno + age + prior, data = x)
 summary(cox1)
 
 # Sélection des variables explicatives : 
 
-cox2= coxph(formula=Surv(time,status)~trt+celltype+karno+age,data=x)
+cox2 = coxph(formula=Surv(time,status)~trt+celltype+karno+age,data=x)
 #summary(cox2)
 
-cox3= coxph(formula=Surv(time,status)~trt+celltype+karno,data=x)
+cox3 = coxph(formula=Surv(time,status)~trt+celltype+karno,data=x)
 #summary(cox3)
 
 ```
 
 Nous pouvons tracer le graphe de la fonction de survie (Kaplan Meier ou Aalen, c'est Aalen par défaut).
 Les covariables sont fixées à leur valeur moyenne.
-
 
 
 #### Affichage graphique du modèle à sept variables : 
@@ -1947,8 +1932,9 @@ legend(
 
 ```
 
-
-
+```{r echo=FALSE}
+rm(list = setdiff(ls(), "palette_couleur")) # Nettoyage de l'environnement
+```
 
 # Examen 2023-2024 :
 
@@ -2307,6 +2293,11 @@ i=which(v.obj$time.interest==400)
 v.obj$survival.oob[1,i ]
 ```
 
+
+```{r echo=FALSE}
+rm(list = setdiff(ls(), "palette_couleur")) # Nettoyage de l'environnement
+```
+
 # Autres exercices :
 
 ## Exercice sur la modélisation de Lee-Carter
@@ -2478,6 +2469,11 @@ legend(
   cex = 0.8
 )
 
+```
+
+
+```{r echo=FALSE}
+rm(list = setdiff(ls(), "palette_couleur")) # Nettoyage de l'environnement
 ```
 
 ## Exercice 2 : La modélisation de log-Poisson
@@ -2825,4 +2821,8 @@ legend(
   cex = 0.8,
   lwd = 2
 )
+```
+
+```{r echo=FALSE}
+rm(list = setdiff(ls(), "palette_couleur")) # Nettoyage de l'environnement
 ```
