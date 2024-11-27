@@ -21,6 +21,9 @@ editor_options:
     wrap: sentence
 ---
 
+\clearpage 
+\newpage
+
 ```{r setup, include = FALSE, warning = FALSE, message = FALSE}
 # Gestion des options sur les chunk  
 knitr::opts_chunk$set(warning = FALSE, 
@@ -34,7 +37,6 @@ knitr::opts_chunk$set(warning = FALSE,
 
 # Définition d'une palette de couleurs : 
 palette_couleur = c("#36648B", "#F4A460", "#9AFF9A", "#FFD700", "#838B8B","#EED5B7", "#FF82AB")
-
 
 ```
 
